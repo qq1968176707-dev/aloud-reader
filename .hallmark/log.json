@@ -1,0 +1,20 @@
+[
+  {
+    "date": "2026-08-08",
+    "scope": "app",
+    "macrostructure": "app-surfaces (library grid / reader / stats)",
+    "theme": "custom (Apple Books grammar)",
+    "theme_axes": "dual-band paper / grotesk-variable display / warm accent",
+    "enrichment": "none",
+    "brief": "逐读 · pass 2: in-app ConfirmDialog replaces window.confirm, RA popover joins material family, list view designed (thumbs/hairlines/muted info)"
+  },
+  {
+    "date": "2026-08-05",
+    "scope": "app",
+    "macrostructure": "app-surfaces (library grid / reader / stats)",
+    "theme": "custom (Apple Books grammar)",
+    "theme_axes": "dual-band paper / grotesk-variable display / warm accent",
+    "enrichment": "none",
+    "brief": "逐读 Aloud Reader · lock existing Apple system into design.md, finish undesigned corners (scrubber, danger tokens, floating-layer material, type floor)"
+  }
+]

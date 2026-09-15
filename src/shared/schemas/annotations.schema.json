@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aloudreader.app/schemas/annotations.schema.json",
+  "title": "Per-book annotation file (annotations/<bookId>.json)",
+  "type": "object",
+  "required": ["schema", "bookId", "annotations"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": "aloud-annotations/1" },
+    "bookId": { "type": "string" },
+    "annotations": { "type": "array", "items": { "$ref": "#/$defs/annotation" } }
+  },
+  "$defs": {
+    "textAnchor": {
+      "type": "object",
+      "description": "Layout-independent location. blockIndex indexes the leaf block elements of the chapter in document order; start/end are character offsets into that block's concatenated text nodes. exact/prefix/suffix are only consulted when the offsets no longer match (re-import, edited source).",
+      "required": ["chapterId", "blockIndex", "start", "end"],
+      "additionalProperties": false,
+      "properties": {
+        "chapterId": { "type": "string" },
+        "blockIndex": { "type": "integer", "minimum": 0 },
+        "start": { "type": "integer", "minimum": 0 },
+        "end": { "type": "integer", "minimum": 0 },
+        "exact": { "type": "string", "description": "Anchored text at creation time." },
+        "prefix": { "type": "string", "maxLength": 64 },
+        "suffix": { "type": "string", "maxLength": 64 }
+      }
+    },
+    "annotation": {
+      "type": "object",
+      "required": ["id", "kind", "anchor", "text", "createdAt", "updatedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "enum": ["highlight", "underline", "bookmark"] },
+        "color": { "enum": ["yellow", "green", "blue", "pink", "purple"] },
+        "note": { "type": "string" },
+        "anchor": { "$ref": "#/$defs/textAnchor" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "highlight" } }, "required": ["kind"] },
+          "then": { "required": ["color"] }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aloudreader.app/schemas/settings.schema.json",
+  "title": "App settings (settings.json)",
+  "type": "object",
+  "required": ["schema"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": "aloud-settings/1" },
+    "theme": { "enum": ["white", "sepia", "gray", "night"], "default": "white" },
+    "fontFamily": { "type": "string", "default": "serif-cn", "description": "Key into the app's font stack table." },
+    "fontSizePx": { "type": "number", "minimum": 12, "maximum": 40, "default": 19 },
+    "lineHeight": { "type": "number", "minimum": 1.2, "maximum": 2.6, "default": 1.75 },
+    "marginPct": { "type": "number", "minimum": 0, "maximum": 40, "default": 12 },
+    "brightness": { "type": "number", "minimum": 0.3, "maximum": 1, "default": 1 },
+    "justify": { "type": "boolean", "default": false },
+    "bold": { "type": "boolean", "default": false, "description": "Heavier body weight for the reading column." },
+    "letterSpacing": { "type": "number", "minimum": 0, "maximum": 0.08, "default": 0, "description": "Extra tracking in em." },
+    "paragraphSpacing": { "type": "number", "minimum": 0, "maximum": 1.6, "default": 0, "description": "Space between paragraphs in em." },
+    "sidebarWidth": { "type": "number", "minimum": 180, "maximum": 480, "default": 232 },
+    "panelWidth": { "type": "number", "minimum": 240, "maximum": 620, "default": 320 },
+    "layout": { "enum": ["paginated", "scroll"], "default": "paginated" },
+    "spread": { "enum": ["auto", "single", "double"], "default": "double" },
+    "migrations": {
+      "type": "object",
+      "description": "One-shot migrations already applied by getSettings().",
+      "additionalProperties": { "type": "boolean" }
+    },
+    "pageAnimation": {
+      "enum": ["curl", "slide", "fade", "none"],
+      "default": "curl",
+      "description": "Paginated mode only. curl (卷页) rotates a cloned DOM leaf in 3D, so images turn with the page."
+    },
+    "toolbarScale": { "type": "number", "minimum": 0.8, "maximum": 1.3, "default": 1, "description": "Scales the reader toolbar pill and its icons." },
+    "pageSound": { "type": "boolean", "default": true, "description": "Synthesised paper rustle on each page turn — no audio asset is shipped." },
+    "pageSoundVolume": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.6 },
+    "readAloud": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "engine": {
+          "enum": ["system", "edge", "local"],
+          "default": "system",
+          "description": "system = offline SAPI5 voices via the Web Speech API; local = an HTTP model server the user runs (GPT-SoVITS / CosyVoice / OpenAI-compatible); edge = Microsoft's free read-aloud endpoint, which now rejects synthesis with HTTP 403."
+        },
+        "rate": { "type": "number", "minimum": 0.5, "maximum": 2, "default": 1 },
+        "voiceByLang": {
+          "type": "object",
+          "description": "Language bucket (zh / en / other) -> voice id.",
+          "additionalProperties": { "type": "string" }
+        },
+        "linePauseMs": { "type": "integer", "minimum": 0, "maximum": 3000, "default": 120 },
+        "stopAtChapterEnd": { "type": "boolean", "default": false },
+        "highlightWords": { "type": "boolean", "default": true },
+        "estimateWordTiming": {
+          "type": "boolean",
+          "default": true,
+          "description": "When the engine reports no word boundaries, derive them from the clip duration weighted by per-character speaking cost."
+        },
+        "autoScroll": { "type": "boolean", "default": true },
+        "local": { "$ref": "#/$defs/localTts" }
+      }
+    },
+    "goals": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "dailyMinutes": { "type": "integer", "minimum": 1, "maximum": 600, "default": 20 } }
+    },
+    "library": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "view": { "enum": ["grid", "list"], "default": "grid" },
+        "sort": { "enum": ["manual", "title", "author", "recent", "added"], "default": "manual" }
+      }
+    },
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "width": { "type": "integer" },
+        "height": { "type": "integer" },
+        "x": { "type": "integer" },
+        "y": { "type": "integer" },
+        "maximized": { "type": "boolean" }
+      }
+    }
+  },
+  "$defs": {
+    "localTts": {
+      "type": "object",
+      "description": "Connection to a TTS model server running on the user's own machine.",
+      "additionalProperties": false,
+      "properties": {
+        "preset": {
+          "enum": ["kokoro", "openai", "gpt-sovits", "cosyvoice", "custom"],
+          "default": "kokoro",
+          "description": "kokoro = the app-managed built-in server (tts-server/server.py, POST /tts); openai = POST /v1/audio/speech; gpt-sovits = POST /tts (api_v2.py); cosyvoice = multipart POST to /inference_sft | /inference_instruct2 | /inference_zero_shot."
+        },
+        "baseUrl": { "type": "string", "format": "uri", "default": "http://127.0.0.1:8973" },
+        "voice": {
+          "type": "string",
+          "description": "Meaning depends on the preset: OpenAI voice name, GPT-SoVITS ref_audio_path, or CosyVoice spk_id."
+        },
+        "model": { "type": "string", "default": "tts-1" },
+        "refText": { "type": "string", "description": "GPT-SoVITS prompt_text / CosyVoice zero-shot prompt_text: the transcript of the reference clip." },
+        "refLang": { "type": "string", "default": "zh" },
+        "instruct": {
+          "type": "string",
+          "default": "用温柔平静的语气朗读",
+          "description": "CosyVoice instruct_text — a plain-language style instruction. This is the emotion control."
+        },
+        "refAudio": { "type": "string", "description": "Absolute path to the reference wav, uploaded as multipart for CosyVoice." },
+        "cosyMode": { "enum": ["sft", "instruct2", "zero_shot"], "default": "sft" },
+        "method": { "enum": ["POST", "GET"], "default": "POST" },
+        "path": { "type": "string", "default": "/tts" },
+        "bodyTemplate": {
+          "type": "string",
+          "description": "custom preset only. Placeholders: {{text}} {{voice}} {{speed}} {{instruct}} {{model}} — each JSON-escaped before substitution."
+        },
+        "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+        "timeoutSec": { "type": "integer", "minimum": 5, "maximum": 600, "default": 60 }
+      }
+    }
+  }
+}

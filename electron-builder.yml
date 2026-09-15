@@ -1,0 +1,49 @@
+appId: com.aloudreader.app
+productName: Aloud Reader
+copyright: Copyright © 2026
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - node_modules/**/*
+  - package.json
+  - '!**/*.map'
+  - '!node_modules/**/{test,__tests__,docs,example,examples}/**'
+
+# Native-free project: app code is bundled, runtime deps ship inside the asar.
+asar: true
+
+# Built-in TTS server scripts (the venv + model are installed beside them at runtime).
+extraResources:
+  - from: tts-server
+    to: tts-server
+    filter: ['*.py', '*.bat']
+
+win:
+  target:
+    # nsis     = 安装版（开始菜单 + 桌面快捷方式）
+    # portable = 免安装单文件 exe，双击直接跑
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  icon: build/icon.ico
+
+nsis:
+  artifactName: AloudReader-${version}-setup.exe
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Aloud Reader
+  deleteAppDataOnUninstall: false
+  language: '2052' # 简体中文安装界面
+
+portable:
+  artifactName: AloudReader-${version}-portable.exe
+  requestExecutionLevel: user

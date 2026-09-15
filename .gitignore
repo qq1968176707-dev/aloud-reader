@@ -1,0 +1,19 @@
+node_modules/
+dist/
+dist-electron/
+release/
+*.log
+.DS_Store
+samples/*.zip
+.eb-cache/
+build/icon.png
+
+# 语音模型运行时：Kokoro 与 VoxCPM 的 venv + 权重（后者含 1.3GB 单文件，
+# 远超 GitHub 100MB 上限），都能按 README 重装，绝不进仓。
+tts-server/runtime/
+tts-server/runtime-voxcpm/
+
+# 自检产物与设计评审截图，每次 smoke 重新生成
+smoke-result.json
+smoke-stdout*.txt
+shot-*.png

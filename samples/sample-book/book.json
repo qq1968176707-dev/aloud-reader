@@ -1,0 +1,24 @@
+{
+  "schema": "aloud-book/1",
+  "id": "aloud-demo",
+  "title": "逐行导读 · 示例书",
+  "authors": ["Aloud Reader"],
+  "language": "zh-CN",
+  "description": "演示 .zip 图书包格式：有序章节 + images/ + book.json，图文混排，可用来试逐行朗读。",
+  "cover": "images/cover.svg",
+  "published": "2026-08-02",
+  "readingOrder": [
+    { "id": "ch01", "href": "chapters/ch01.md", "title": "第一章 · 一种更慢的读法", "format": "markdown" },
+    { "id": "ch02", "href": "chapters/ch02.md", "title": "第二章 · 图片与排版", "format": "markdown" },
+    { "id": "ch03", "href": "chapters/ch03.md", "title": "Chapter 3 · Reading aloud in English", "format": "markdown" }
+  ],
+  "toc": [
+    { "title": "第一章 · 一种更慢的读法", "chapterId": "ch01" },
+    { "title": "第二章 · 图片与排版", "chapterId": "ch02" },
+    { "title": "Chapter 3 · Reading aloud in English", "chapterId": "ch03" }
+  ],
+  "meta": {
+    "publisher": "本地示例",
+    "tags": ["demo", "格式说明"]
+  }
+}

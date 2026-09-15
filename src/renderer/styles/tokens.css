@@ -1,0 +1,260 @@
+/* ------------------------------------------------------------------ *
+ * Design tokens — Apple Books grammar.
+ *
+ * Two rules carried through every surface:
+ *   1. The book is the hero; chrome is quiet, translucent MATERIAL that defers.
+ *   2. One accent (Apple system orange), hairline separators, soft double
+ *      shadows, and one motion curve family. Nothing decorative.
+ *
+ * The chrome (library, toolbars, panels) always follows the app palette;
+ * only the reading surface switches between the four reading themes.
+ * ------------------------------------------------------------------ */
+
+:root {
+  /* Segoe UI Variable first: on Windows 11 its optical sizing gives Latin text
+     and numerals the SF-like crispness; Chinese falls through to PingFang/YaHei. */
+  --font-ui: 'Segoe UI Variable Text', 'PingFang SC', 'Microsoft YaHei UI', 'Segoe UI',
+    system-ui, -apple-system, sans-serif;
+  --font-display: 'Segoe UI Variable Display', 'PingFang SC', 'Microsoft YaHei UI',
+    'Segoe UI', system-ui, sans-serif;
+
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 16px;
+  /* Popovers, menus, toasts — the floating layer. */
+  --radius-pop: 13px;
+
+  /* Apple-style shadows: a crisp hairline, a tight contact shadow, a soft ambient. */
+  --shadow-card:
+    0 0 0 1px rgb(0 0 0 / 0.04),
+    0 1px 2px rgb(0 0 0 / 0.12),
+    0 10px 24px -12px rgb(0 0 0 / 0.28);
+  --shadow-card-hover:
+    0 0 0 1px rgb(0 0 0 / 0.04),
+    0 2px 5px rgb(0 0 0 / 0.14),
+    0 24px 44px -16px rgb(0 0 0 / 0.4);
+  --shadow-panel:
+    0 0 0 1px rgb(0 0 0 / 0.05),
+    0 2px 6px rgb(0 0 0 / 0.08),
+    0 18px 50px -16px rgb(0 0 0 / 0.35);
+
+  /* Apple's sheet curve for anything that moves, and a snappier tail for micro. */
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Sampled damped springs (linear()): controls get ~4% of overshoot life; sheets get a
+     bounce-free landing. Generated from the physical model, not hand-drawn. */
+  --spring: linear(0, 0.0681 4.5%, 0.2216 9.1%, 0.4035 13.6%, 0.5786 18.2%, 0.7282 22.7%, 0.8451 27.3%, 0.9293 31.8%, 0.9848 36.4%, 1.0176 40.9%, 1.0336 45.5%, 1.0384 50%, 1.0362 54.5%, 1.0306 59.1%, 1.0236 63.6%, 1.0168 68.2%, 1.011 72.7%, 1.0063 77.3%, 1.003 81.8%, 1.0008 86.4%, 0.9994 90.9%, 0.9987 95.5%, 1 100%);
+  --spring-sheet: linear(0, 0.04 4.5%, 0.132 9.1%, 0.246 13.6%, 0.364 18.2%, 0.4755 22.7%, 0.5753 27.3%, 0.6615 31.8%, 0.7337 36.4%, 0.7931 40.9%, 0.8409 45.5%, 0.879 50%, 0.9088 54.5%, 0.932 59.1%, 0.9497 63.6%, 0.9632 68.2%, 0.9733 72.7%, 0.9809 77.3%, 0.9864 81.8%, 0.9905 86.4%, 0.9934 90.9%, 0.9955 95.5%, 1 100%);
+
+  /* Translucent material for floating chrome (menus, popovers, toasts, bars). */
+  --material-blur: blur(28px) saturate(1.8);
+
+  /* App chrome — light */
+  --app-bg: #f5f4f2;
+  --app-bg-elevated: #ffffff;
+  --app-sidebar: #edecea;
+  --app-material: rgb(250 250 249 / 0.82);
+  --app-fg: #1d1d1f;
+  --app-fg-muted: #6e6b66;
+  --app-fg-faint: #98948d;
+  --app-line: rgb(0 0 0 / 0.09);
+  --app-hover: rgb(0 0 0 / 0.045);
+  --app-active: rgb(0 0 0 / 0.085);
+  --accent: #d97e00;
+  --accent-soft: rgb(217 126 0 / 0.13);
+  /* Ink on orange in BOTH modes: white-on-#d97e00 measures 3.03:1, below AA. Dark ink
+     measures 5.86:1 and matches what dark mode always did. */
+  --accent-fg: #241503;
+  /* Accent as TEXT needs its own darker cut: #d97e00 as text on white is 3.03:1.
+     #9a5a00 reads as the same orange voice at 5.47:1 (4.64:1 on the sidebar). */
+  --accent-text: #9a5a00;
+  --danger: #c93a26;
+  --danger-soft: rgb(201 58 38 / 0.13);
+  /* White on #c93a26 measures 5.10:1 — passes as fill text in light mode. */
+  --danger-fg: #ffffff;
+  /* Switch and slider knobs stay white in both modes, like Apple's. */
+  --knob: #ffffff;
+
+  /* Annotation colours (shared by both palettes, tuned per theme below) */
+  --hl-yellow: #ffe58a;
+  --hl-green: #b7e6a3;
+  --hl-blue: #a6d4f6;
+  --hl-pink: #f8b3cb;
+  --hl-purple: #d5bcf4;
+
+  color-scheme: light;
+}
+
+:root[data-app-dark='true'] {
+  --app-bg: #161618;
+  --app-bg-elevated: #222226;
+  --app-sidebar: #1b1b1e;
+  --app-material: rgb(30 30 33 / 0.78);
+  --app-fg: #ededec;
+  --app-fg-muted: #a3a099;
+  --app-fg-faint: #757269;
+  --app-line: rgb(255 255 255 / 0.1);
+  --app-hover: rgb(255 255 255 / 0.07);
+  --app-active: rgb(255 255 255 / 0.12);
+  --accent: #ff9f0a;
+  --accent-soft: rgb(255 159 10 / 0.17);
+  --accent-fg: #241503;
+  --accent-text: #ff9f0a;
+  --danger: #ff6b52;
+  --danger-soft: rgb(255 107 82 / 0.16);
+  /* The dark-mode red is bright: ink text, same rule as the accent. */
+  --danger-fg: #2b0c07;
+  --shadow-card:
+    0 0 0 1px rgb(255 255 255 / 0.05),
+    0 1px 2px rgb(0 0 0 / 0.4),
+    0 10px 24px -12px rgb(0 0 0 / 0.55);
+  --shadow-card-hover:
+    0 0 0 1px rgb(255 255 255 / 0.06),
+    0 2px 5px rgb(0 0 0 / 0.42),
+    0 24px 44px -16px rgb(0 0 0 / 0.66);
+  --shadow-panel:
+    0 0 0 1px rgb(255 255 255 / 0.07),
+    0 2px 6px rgb(0 0 0 / 0.45),
+    0 18px 50px -16px rgb(0 0 0 / 0.65);
+  color-scheme: dark;
+}
+
+/* ---------------------------------------------------- reading themes */
+
+[data-theme='white'] {
+  --reader-bg: #ffffff;
+  --reader-fg: #1c1c1e;
+  --reader-dim: #b9b8b6;
+  --reader-muted: #86858a;
+  --reader-rule: #e6e5e2;
+  --ra-line: rgb(255 214 130 / 0.42);
+  --ra-word: #ffcf5c;
+  --ra-word-fg: #241a05;
+}
+
+[data-theme='sepia'] {
+  --reader-bg: #f6ecd8;
+  --reader-fg: #3a2d1c;
+  --reader-dim: #bcae95;
+  --reader-muted: #8a7a60;
+  --reader-rule: #e2d4b8;
+  --ra-line: rgb(216 154 60 / 0.32);
+  --ra-word: #e7ac4a;
+  --ra-word-fg: #2c1f0c;
+}
+
+[data-theme='gray'] {
+  --reader-bg: #3c3d40;
+  --reader-fg: #e2e1de;
+  --reader-dim: #7d7e82;
+  --reader-muted: #a3a4a8;
+  --reader-rule: #4e5054;
+  --ra-line: rgb(255 205 120 / 0.24);
+  --ra-word: #f0c169;
+  --ra-word-fg: #221a0b;
+  --hl-yellow: #a58c3f;
+  --hl-green: #5c8a4c;
+  --hl-blue: #4a7ba6;
+  --hl-pink: #a45d78;
+  --hl-purple: #7d5fa6;
+}
+
+[data-theme='night'] {
+  --reader-bg: #0b0b0d;
+  --reader-fg: #b9b8b6;
+  --reader-dim: #4a4a4d;
+  --reader-muted: #6e6d70;
+  --reader-rule: #26262a;
+  --ra-line: rgb(255 190 100 / 0.18);
+  --ra-word: #d9a24d;
+  --ra-word-fg: #14100a;
+  --hl-yellow: #7c672c;
+  --hl-green: #40653a;
+  --hl-blue: #35597a;
+  --hl-pink: #7a4257;
+  --hl-purple: #5a4479;
+}
+
+/* ---------------------------------------------------- handwriting pens */
+
+/* Saturated writing inks. `--pen-ink` follows the page's text colour; the chromatic
+   pens get a lighter cut on dark reading themes so they stay legible. */
+:root,
+[data-theme='white'],
+[data-theme='sepia'] {
+  --pen-ink: var(--reader-fg, #1d1d1f);
+  --pen-red: #c8372a;
+  --pen-blue: #2563c4;
+  --pen-orange: #d97e00;
+}
+[data-theme='gray'],
+[data-theme='night'] {
+  --pen-ink: var(--reader-fg);
+  --pen-red: #ff7a66;
+  --pen-blue: #6ea8ff;
+  --pen-orange: #ffb35c;
+}
+
+/* ------------------------------------------------- font family stacks */
+
+[data-font='serif-cn'] {
+  --reader-font: 'Source Han Serif SC', 'Noto Serif CJK SC', 'Songti SC', SimSun, Georgia,
+    'Times New Roman', serif;
+}
+[data-font='sans-cn'] {
+  --reader-font: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', system-ui, sans-serif;
+}
+[data-font='kai'] {
+  --reader-font: 'Kaiti SC', KaiTi, STKaiti, 'Adobe Kaiti Std', Georgia, serif;
+}
+[data-font='charter'] {
+  --reader-font: Charter, Georgia, Cambria, 'Songti SC', serif;
+}
+[data-font='palatino'] {
+  --reader-font: 'Palatino Linotype', Palatino, 'Book Antiqua', 'Songti SC', serif;
+}
+[data-font='system'] {
+  --reader-font: var(--font-ui);
+}
+
+/* --------------------------------------------- range painting (ranges!) */
+
+::highlight(ra-line) {
+  background-color: var(--ra-line);
+  color: var(--reader-fg);
+}
+::highlight(ra-word) {
+  background-color: var(--ra-word);
+  color: var(--ra-word-fg);
+}
+::highlight(anno-yellow) {
+  background-color: var(--hl-yellow);
+  color: var(--reader-fg);
+}
+::highlight(anno-green) {
+  background-color: var(--hl-green);
+  color: var(--reader-fg);
+}
+::highlight(anno-blue) {
+  background-color: var(--hl-blue);
+  color: var(--reader-fg);
+}
+::highlight(anno-pink) {
+  background-color: var(--hl-pink);
+  color: var(--reader-fg);
+}
+::highlight(anno-purple) {
+  background-color: var(--hl-purple);
+  color: var(--reader-fg);
+}
+::highlight(anno-underline) {
+  text-decoration: underline 0.12em var(--accent);
+  text-underline-offset: 0.22em;
+}
+::highlight(search-hit) {
+  background-color: var(--accent-soft);
+  color: var(--reader-fg);
+}
+::selection {
+  background: var(--accent-soft);
+}

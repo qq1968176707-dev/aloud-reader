@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aloudreader.app/schemas/book-manifest.schema.json",
+  "title": "Aloud Book Package Manifest (book.json)",
+  "description": "Manifest at the root of an .aloudbook / .zip book package. Everything it references is package-relative; no absolute paths and no remote URLs are allowed.",
+  "type": "object",
+  "required": ["schema", "title", "readingOrder"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": "aloud-book/1" },
+    "id": {
+      "type": "string",
+      "description": "Stable id. Optional in a distributed package — the importer generates one if absent.",
+      "pattern": "^[A-Za-z0-9._-]{1,64}$"
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "authors": { "type": "array", "items": { "type": "string" }, "default": [] },
+    "language": {
+      "type": "string",
+      "description": "BCP-47 tag. Chooses the default read-aloud voice.",
+      "examples": ["zh-CN", "en-US"],
+      "default": "en-US"
+    },
+    "description": { "type": "string" },
+    "published": { "type": "string", "description": "ISO date or free text." },
+    "cover": {
+      "type": "string",
+      "description": "Package-relative path to the cover image.",
+      "examples": ["images/cover.jpg"]
+    },
+    "readingOrder": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Linear reading order. Index = chapter index; ids are the first component of every anchor and must be unique and stable.",
+      "items": {
+        "type": "object",
+        "required": ["id", "href"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,64}$" },
+          "href": {
+            "type": "string",
+            "description": "Package-relative path to the chapter file.",
+            "examples": ["chapters/ch01.md", "chapters/ch01.html"]
+          },
+          "title": { "type": "string" },
+          "format": {
+            "enum": ["markdown", "html"],
+            "description": "Defaults to markdown for .md/.markdown, html otherwise."
+          }
+        }
+      }
+    },
+    "toc": {
+      "type": "array",
+      "description": "Optional nested table of contents. Every entry points at a chapter id from readingOrder.",
+      "items": { "$ref": "#/$defs/tocItem" }
+    },
+    "meta": {
+      "type": "object",
+      "description": "Free-form extra metadata (publisher, isbn, tags, ...).",
+      "additionalProperties": true
+    },
+    "source": {
+      "type": "object",
+      "description": "Filled in by the importer; not authored by hand.",
+      "additionalProperties": true,
+      "properties": {
+        "type": { "enum": ["zip", "epub", "pdf"] },
+        "originalFile": { "type": "string" },
+        "importedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "$defs": {
+    "tocItem": {
+      "type": "object",
+      "required": ["title", "chapterId"],
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string" },
+        "chapterId": { "type": "string" },
+        "children": { "type": "array", "items": { "$ref": "#/$defs/tocItem" } }
+      }
+    }
+  }
+}

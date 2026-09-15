@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aloudreader.app/schemas/read-aloud-segment.schema.json",
+  "title": "Read-aloud segment",
+  "description": "Derived, never persisted as a file: segments are recomputed from chapter text on demand. Only the *id* is persisted (in reading state, as lastSegmentId), so the id must be stable for a given chapter text.",
+  "type": "object",
+  "required": ["id", "chapterId", "blockIndex", "index", "start", "end", "text", "lang"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "`${chapterId}|${blockIndex}|${index}`",
+      "pattern": "^.+\\|[0-9]+\\|[0-9]+$"
+    },
+    "chapterId": { "type": "string" },
+    "blockIndex": { "type": "integer", "minimum": 0 },
+    "index": { "type": "integer", "minimum": 0, "description": "Segment index inside the block." },
+    "start": { "type": "integer", "minimum": 0, "description": "Char offset into the block text — same coordinate space as TextAnchor." },
+    "end": { "type": "integer", "minimum": 0 },
+    "text": { "type": "string" },
+    "lang": { "enum": ["zh", "en", "other"], "description": "Detected per segment; selects the TTS voice." }
+  },
+  "$comment": "Word-level highlighting uses charIndex/charLength reported by the speech engine, relative to `text`; the renderer maps them to block offsets by adding `start`."
+}
