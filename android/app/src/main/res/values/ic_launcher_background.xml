@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 自适应图标的底色：跟应用的纸张色一致（tokens.css 的 --app-bg）。 -->
+<!-- 自适应图标的底色：跟应用的纸张色一致（见 tokens.css 里的 app-bg 令牌）。
+     注意 XML 注释里不能出现两个连字符，Gradle 的资源合并会直接报错。 -->
 <resources>
     <color name="ic_launcher_background">#F5F4F2</color>
 </resources>
