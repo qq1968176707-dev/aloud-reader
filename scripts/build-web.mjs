@@ -18,7 +18,6 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
-import electronPath from 'electron';
 
 const OUT = path.resolve('dist-web');
 
@@ -53,6 +52,10 @@ if (havePrebuilt) {
   }
   console.log(`copied PWA icons from build/pwa/`);
 } else {
+  // Imported here, not at the top: `electron` throws on import when its binary was not
+  // downloaded (CI sets ELECTRON_SKIP_BINARY_DOWNLOAD=1), and this branch is the only
+  // thing that needs it.
+  const { default: electronPath } = await import('electron');
   await new Promise((resolve, reject) => {
     const iconHtml = path.resolve('build/icon.html');
     if (!existsSync(iconHtml)) {
