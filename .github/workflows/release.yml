@@ -1,0 +1,98 @@
+# 发布安装包到 GitHub Releases。
+#
+#   git tag v0.1.0 && git push origin v0.1.0     → 自动构建四个安装包并建 Release
+#   （也可以在 Actions 页面手动跑，填一个版本号）
+#
+# 每个平台都在自己的机器上打包：Windows 的 NSIS 装不进 macOS，macOS 的签名也只有
+# macOS 机器做得了。四个产物 = 两个平台 × 完整版(pro)/轻量版(lite)。
+# iPad 不在这里——它是 PWA，地址见 Release 说明。
+name: Release installers
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号（如 v0.1.0），只用于手动触发时给 Release 起名'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: windows
+            # 完整版 + 轻量版，nsis 安装版和 portable 免安装版各一套
+            commands: 'npm run dist:win && npm run dist:win:lite'
+          - os: macos-latest
+            name: macos
+            # Apple Silicon 与 Intel 两种芯片都出一份
+            commands: 'node scripts/dist.mjs --mac --arm64 --x64 && node scripts/dist.mjs --mac --lite --arm64 --x64'
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - name: 打包
+        shell: bash
+        run: ${{ matrix.commands }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.name }}
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.zip
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - run: ls -lh dist
+      - name: 建 Release 并挂上安装包
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version || github.ref_name }}
+          name: 逐读 Aloud Reader ${{ github.event.inputs.version || github.ref_name }}
+          files: dist/*
+          fail_on_unmatched_files: true
+          body: |
+            ## 下载哪一个
+
+            | 系统 | 文件 |
+            | --- | --- |
+            | Windows | `AloudReader-<版本>-pro-setup.exe`（安装版）或 `-portable.exe`（免安装，双击就跑） |
+            | macOS · Apple 芯片 | `AloudReader-<版本>-arm64-pro.dmg` |
+            | macOS · Intel | `AloudReader-<版本>-x64-pro.dmg` |
+            | iPad | 不用下载：Safari 打开 <https://qq1968176707-dev.github.io/aloud-reader/> →「添加到主屏幕」 |
+
+            **pro 和 lite 的区别**：`pro` 含声音克隆（用你自己的声音朗读整本书），
+            `lite` 不含，其余功能完全一样。语音模型都不在安装包里，进应用点「下载」按钮才拉。
+
+            ## 第一次打开会被系统拦
+
+            这两个包都没有花钱买的开发者证书，所以：
+
+            - **Windows**：SmartScreen 弹「已保护你的电脑」→ 点「更多信息」→「仍要运行」
+            - **macOS**：提示「无法验证开发者」→ 在「应用程序」里**右键点图标 → 打开 → 再点打开**，
+              之后就跟普通应用一样了
+
+            ## 用之前值得知道的
+
+            - 全本地：没有账号、没有云、没有联网上传，书和笔记都在你自己的磁盘上
+            - 内置神经语音约 1GB、声音克隆引擎约 5GB，都是应用内点按钮下载，可以断了重来
