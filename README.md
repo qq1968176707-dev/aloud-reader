@@ -24,6 +24,7 @@ npm run dist:win:lite    # Windows 轻量版
 | --- | --- |
 | Windows | [Releases](https://github.com/qq1968176707-dev/aloud-reader/releases/latest) 里的 `-pro-setup.exe`（安装版）或 `-pro-portable.exe`（免安装） |
 | macOS | 同页面的 `-arm64-pro.dmg`（Apple 芯片）/ `-x64-pro.dmg`（Intel），拖进「应用程序」 |
+| 安卓 | 同页面的 `AloudReader-<版本>.apk`，下载直接装（朗读用手机自带的语音引擎） |
 | iPad | 不用下载：Safari 打开 <https://qq1968176707-dev.github.io/aloud-reader/> →「添加到主屏幕」 |
 
 `pro` 含声音克隆，`lite` 不含，其余一样。两个桌面包都没买证书，第一次打开要过一下
@@ -32,6 +33,7 @@ npm run dist:win:lite    # Windows 轻量版
 Windows 和 macOS 两台 runner 上各自打包再建 Release。
 
 iPad 版的源码在 `src/web/`，进度与坑见 `IPAD-PORT.md`；推 main 自动发布到 Pages。
+安卓版是同一份网页版套 Capacitor 壳（`android/`，朗读接安卓原生 TTS），见 `ANDROID.md`。
 
 **模型不进安装包。** 内置语音（约 1GB）和克隆引擎（约 5GB）都是在应用里点「下载」按钮之后
 才拉的：应用内进度条 + 阶段提示 + 可取消，断了重来不会重复下载已有的部分。

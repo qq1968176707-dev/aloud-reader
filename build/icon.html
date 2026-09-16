@@ -10,7 +10,14 @@
     width: 1024px; height: 1024px;
     display: flex; align-items: center; justify-content: center;
   }
+  /* ?scale=0.66 — Android masks adaptive icons, so its foreground layer needs the
+     artwork inset on a transparent canvas or the launcher shaves the corners off. */
+  .icon > svg { transform: scale(var(--icon-scale, 1)); }
 </style>
+<script>
+  const scale = new URLSearchParams(location.search).get('scale');
+  if (scale) document.documentElement.style.setProperty('--icon-scale', scale);
+</script>
 <div class="icon">
   <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
     <defs>

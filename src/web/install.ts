@@ -1,6 +1,7 @@
 import { webApi } from './api';
 import { ASSET_BASE, INK_BASE } from './assets';
 import { requestPersistence } from './storage';
+import { isNativeShell } from './nativeSpeech';
 
 /**
  * Installs the browser host onto `window` — and must run before ANY renderer module
@@ -30,6 +31,12 @@ window.__aloudInkBase = INK_BASE;
 (window as any).aloud = webApi;
 
 document.documentElement.classList.add('web');
+// Inside the APK: styling hooks and a marker the renderer reads for platform wording.
+if (isNativeShell()) {
+  document.documentElement.classList.add('native');
+  const platform = (window as { Capacitor?: { getPlatform?: () => string } }).Capacitor?.getPlatform?.();
+  if (platform) document.documentElement.classList.add(platform);
+}
 // iPadOS reports a coarse pointer; the CSS widens hit targets and disables the
 // hover states that would otherwise stick after a tap.
 if (matchMedia('(pointer: coarse)').matches) document.documentElement.classList.add('touch');

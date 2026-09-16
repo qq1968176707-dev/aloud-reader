@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 自适应图标的底色：跟应用的纸张色一致（tokens.css 的 --app-bg）。 -->
+<resources>
+    <color name="ic_launcher_background">#F5F4F2</color>
+</resources>

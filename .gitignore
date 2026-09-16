@@ -32,3 +32,10 @@ shot-*.png
 # 解析基线：记着本机书库的书名与绝对路径，属于个人数据。
 # 每台机器自己 `node scripts/parity.mjs --record` 生成。
 parity-baseline.json
+
+# 安卓签名密钥：绝不进仓（丢了就换不回来，备份在仓库外）
+*.jks
+*.keystore
+android/app/release/
+android/app/build/
+android/.gradle/

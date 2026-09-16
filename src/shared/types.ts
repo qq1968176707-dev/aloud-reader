@@ -192,6 +192,34 @@ export interface TtsVoice {
   wordBoundary: boolean | 'unknown';
 }
 
+/**
+ * A speech engine supplied by the host instead of by the browser.
+ *
+ * Only Android needs this: its WebView has a `speechSynthesis` object with nothing
+ * behind it, so the Capacitor shell hands the renderer a bridge to the system TTS
+ * (see src/web/nativeSpeech.ts). When the host provides none, the renderer uses the
+ * Web Speech API as before.
+ */
+export interface HostSpeechRequest {
+  text: string;
+  lang: string;
+  voiceId?: string;
+  rate: number;
+  onStart?: () => void;
+  onBoundary?: (charIndex: number, charLength: number) => void;
+  signal: AbortSignal;
+}
+
+export interface HostSpeech {
+  listVoices(): Promise<TtsVoice[]>;
+  speak(req: HostSpeechRequest): Promise<void>;
+  pause(): void;
+  resume(): void;
+  cancel(): void;
+  /** Whether this engine reports character ranges while speaking. */
+  wordBoundary: boolean;
+}
+
 export interface EdgeSynthRequest {
   text: string;
   voice: string;

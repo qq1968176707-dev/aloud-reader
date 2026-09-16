@@ -10,6 +10,7 @@ import '../renderer/styles/tokens.css';
 import '../renderer/styles/app.css';
 import './web.css';
 import { BASE } from './assets';
+import { installImageFallback } from './imageFallback';
 
 /**
  * Entry point for the browser build (iPad).
@@ -27,6 +28,10 @@ if ('serviceWorker' in navigator) {
     void navigator.serviceWorker.register(`${BASE}sw.js`, { scope: BASE });
   });
 }
+
+// No worker in control (Android WebView, a first load, an evicted registration):
+// read pictures out of OPFS into blob URLs instead of showing broken images.
+installImageFallback();
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

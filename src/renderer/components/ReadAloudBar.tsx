@@ -8,7 +8,7 @@ import type {
   TtsVoice,
 } from '@shared/types';
 import type { RaStatus } from '../tts/controller';
-import { IS_MAC, IS_WEB, clamp, cx, kbd } from '../lib/util';
+import { IS_ANDROID, IS_MAC, IS_WEB, clamp, cx, kbd } from '../lib/util';
 import { HAS_CLONE } from '../edition';
 import type { InstallProgress } from '../../main/tts/installer';
 import { Icon, Segmented, Slider, Switch, useDismiss } from './ui';
@@ -244,7 +244,9 @@ export default function ReadAloudBar({
           />
 
           <p className="ra-hint">
-            {IS_WEB
+            {IS_ANDROID
+              ? '用的是手机自带的语音引擎。没声音、或者念不了中文，去「设置 › 无障碍 › 文字转语音输出」装一个中文语音包（小米/华为/三星都自带，也可以装 Google 语音服务）。'
+              : IS_WEB
               ? 'iPad 用的是系统自带的中文语音（设置 › 辅助功能 › 朗读内容 里可以下载更自然的音色）。整本书都离线朗读，不需要联网。'
               : settings.engine === 'system'
               ? IS_MAC

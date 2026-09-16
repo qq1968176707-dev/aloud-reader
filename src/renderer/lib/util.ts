@@ -5,8 +5,10 @@ export const uid = (): string =>
   (globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
 
 export const IS_MAC = window.aloud?.platform === 'darwin';
-/** The browser build (iPad PWA): no Python servers, so system speech is the only engine. */
+/** The browser build (iPad PWA / Android APK): no Python servers, system speech only. */
 export const IS_WEB = window.aloud?.platform === 'web';
+/** The Android APK specifically — set by the Capacitor host (src/web/install.ts). */
+export const IS_ANDROID = typeof document !== 'undefined' && document.documentElement.classList.contains('android');
 
 /** Shortcut label for tooltips: `kbd('F')` -> "⌘F" on macOS, "Ctrl+F" elsewhere. */
 export const kbd = (key: string, shift = false): string =>

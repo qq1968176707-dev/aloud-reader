@@ -12,6 +12,7 @@ import type {
   LocalTtsResult,
   PlainIndex,
   ReadingState,
+  HostSpeech,
   Settings,
   StatsFile,
   TtsVoice,
@@ -113,6 +114,12 @@ const api = {
   dict: {
     lookup: (word: string) => invoke<DictEntry | null>('dict:lookup', word),
   },
+  /**
+   * Host-provided speech engine. Undefined here — the desktop uses the Web Speech API
+   * (SAPI5 / macOS voices) directly. The Android shell fills it in; see
+   * src/web/nativeSpeech.ts and the contract in @shared/types.
+   */
+  speech: undefined as HostSpeech | undefined,
   /** Test harness only: resize the window (0,0 restores maximized). No-op in normal runs. */
   smokeResize: (w: number, h: number) => invoke<void>('smoke:resize', w, h),
   dialog: {

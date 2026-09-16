@@ -24,6 +24,7 @@ import { extractBlocks } from '@shared/import/html';
 import { SUPPORTED_EXTENSIONS, parseBook, type ImportedBook } from '@shared/import/index';
 import { setPdfjsLoader } from '@shared/import/pdf';
 import { ASSET_BASE } from './assets';
+import { createNativeSpeech, isNativeShell } from './nativeSpeech';
 import * as fsx from './storage';
 import { P } from './storage';
 import { defaultSettings, defaultStats } from './defaults';
@@ -207,6 +208,9 @@ const base64ToBytes = (b64: string): Uint8Array<ArrayBuffer> => {
 
 export const webApi = {
   platform: 'web' as const,
+  // Android only: a bridge to the system TTS, because the WebView's speechSynthesis is
+  // an empty shell. Undefined in every browser, where the Web Speech API works.
+  speech: isNativeShell() ? createNativeSpeech() : undefined,
   /** Lets the renderer hide desktop-only affordances without sniffing the UA. */
   isWeb: true,
 

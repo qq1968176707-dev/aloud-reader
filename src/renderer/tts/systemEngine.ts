@@ -1,5 +1,11 @@
 /**
- * Offline engine: the Web Speech API, which on Windows is backed by SAPI5 voices.
+ * Offline engine: the Web Speech API — or whatever the host puts in its place.
+ *
+ * Android's WebView has a `speechSynthesis` object with no engine behind it, so the
+ * Capacitor shell supplies `window.aloud.speech` (native TextToSpeech, character
+ * ranges included). Everything below is the browser path, used everywhere else.
+ *
+ * On Windows the Web Speech API is backed by SAPI5 voices.
  *
  * This is the default because it needs no network, no account and no per-character
  * quota, and because Chromium's Windows implementation *does* emit `boundary` events
@@ -9,7 +15,7 @@
  * Windows 11 "natural" voices (Xiaoxiao / Yunxi) are WinRT-only and are not visible
  * here — that is exactly the gap the optional Edge backend fills.
  */
-import type { TtsVoice } from '@shared/types';
+import type { HostSpeech, TtsVoice } from '@shared/types';
 import { AbortedError, type SpeakRequest, type TtsEngine } from './engine';
 
 const boundaryCapability = new Map<string, boolean>();
@@ -44,12 +50,17 @@ function nativeVoices(): Promise<SpeechSynthesisVoice[]> {
   });
 }
 
+/** The host's own engine, when it has one (Android). */
+const host = (): HostSpeech | undefined => window.aloud?.speech;
+
 export class SystemEngine implements TtsEngine {
   readonly id = 'system' as const;
   /** Chromium drops utterances that get garbage-collected mid-speech. */
   private held: SpeechSynthesisUtterance | null = null;
 
   async listVoices(): Promise<TtsVoice[]> {
+    const bridge = host();
+    if (bridge) return bridge.listVoices();
     const voices = await nativeVoices();
     return voices.map((v) => ({
       id: v.voiceURI,
@@ -61,12 +72,20 @@ export class SystemEngine implements TtsEngine {
   }
 
   wordBoundarySupport(voiceId?: string): boolean | 'unknown' {
+    const bridge = host();
+    if (bridge) return bridge.wordBoundary;
     if (!voiceId) return 'unknown';
     return boundaryCapability.get(voiceId) ?? 'unknown';
   }
 
   async speak(req: SpeakRequest): Promise<void> {
     if (req.signal.aborted) throw new AbortedError();
+    const bridge = host();
+    if (bridge) {
+      await bridge.speak(req);
+      if (req.signal.aborted) throw new AbortedError();
+      return;
+    }
     const voices = await nativeVoices();
     const voice = req.voiceId ? voices.find((v) => v.voiceURI === req.voiceId) : undefined;
 
@@ -145,14 +164,29 @@ export class SystemEngine implements TtsEngine {
   }
 
   pause(): void {
+    const bridge = host();
+    if (bridge) {
+      bridge.pause();
+      return;
+    }
     if (speechSynthesis.speaking) speechSynthesis.pause();
   }
 
   resume(): void {
+    const bridge = host();
+    if (bridge) {
+      bridge.resume();
+      return;
+    }
     if (speechSynthesis.paused) speechSynthesis.resume();
   }
 
   cancel(): void {
+    const bridge = host();
+    if (bridge) {
+      bridge.cancel();
+      return;
+    }
     speechSynthesis.cancel();
     this.held = null;
   }

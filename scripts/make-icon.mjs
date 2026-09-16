@@ -15,6 +15,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
+import { pathToFileURL } from 'node:url';
 import electronPath from 'electron';
 
 const here = path.resolve('build');
@@ -23,12 +24,23 @@ writeFileSync(
   mainFile,
   `const { app, BrowserWindow } = require('electron');
    const fs = require('node:fs');
+   // Two captures from one source: the full-bleed icon, and the inset version Android
+   // uses as an adaptive icon's foreground layer.
+   const shots = [
+     { query: '', out: ${JSON.stringify(path.join(here, 'icon.png'))} },
+     { query: '?scale=0.66', out: ${JSON.stringify(path.join(here, 'pwa', 'icon-foreground.png'))} },
+   ];
+   app.on('window-all-closed', () => {});
    app.whenReady().then(async () => {
-     const win = new BrowserWindow({ width: 1024, height: 1024, show: false, transparent: true, frame: false });
-     await win.loadFile(${JSON.stringify(path.join(here, 'icon.html'))});
-     await new Promise((r) => setTimeout(r, 400));
-     const image = await win.webContents.capturePage();
-     fs.writeFileSync(${JSON.stringify(path.join(here, 'icon.png'))}, image.toPNG());
+     fs.mkdirSync(${JSON.stringify(path.join(here, 'pwa'))}, { recursive: true });
+     for (const shot of shots) {
+       const win = new BrowserWindow({ width: 1024, height: 1024, show: false, transparent: true, frame: false });
+       await win.loadURL(${JSON.stringify(pathToFileURL(path.join(here, 'icon.html')).href)} + shot.query);
+       await new Promise((r) => setTimeout(r, 400));
+       const image = await win.webContents.capturePage();
+       fs.writeFileSync(shot.out, image.toPNG());
+       win.destroy();
+     }
      app.exit(0);
    });`,
 );

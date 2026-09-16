@@ -4,7 +4,8 @@
 #   （也可以在 Actions 页面手动跑，填一个版本号）
 #
 # 每个平台都在自己的机器上打包：Windows 的 NSIS 装不进 macOS，macOS 的签名也只有
-# macOS 机器做得了。四个产物 = 两个平台 × 完整版(pro)/轻量版(lite)。
+# macOS 机器做得了，安卓则要 JDK + Android SDK（Linux runner 自带）。
+# 桌面四个产物 = 两个平台 × 完整版(pro)/轻量版(lite)，外加一个安卓 APK。
 # iPad 不在这里——它是 PWA，地址见 Release 说明。
 name: Release installers
 
@@ -55,8 +56,70 @@ jobs:
             release/*.zip
           if-no-files-found: error
 
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: 版本号写进 APK
+        shell: bash
+        env:
+          TAG: ${{ github.event.inputs.version || github.ref_name }}
+        run: |
+          VERSION="${TAG#v}"
+          # versionCode 必须是递增整数：用 0.1.2 -> 10002 的方式从版本号算出来。
+          CODE=$(echo "$VERSION" | awk -F. '{printf "%d%02d%02d", $1, $2, $3}')
+          sed -i "s/versionName \".*\"/versionName \"${VERSION}\"/" android/app/build.gradle
+          sed -i "s/versionCode .*/versionCode ${CODE}/" android/app/build.gradle
+          grep -E 'versionCode|versionName' android/app/build.gradle
+      # ELECTRON_SKIP_BINARY_DOWNLOAD：安卓用不到 Electron，省 100MB
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      # APK 里的页面从 https://localhost/ 提供，所以 base 用默认的 '/'
+      - run: npm run build:web
+      - run: npx cap sync android
+      - name: 还原签名密钥
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "没有配置 ANDROID_KEYSTORE_BASE64，将用 debug 签名打包（能装，但不能覆盖安装正式版）"
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/aloud-release.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/aloud-release.jks" >> "$GITHUB_ENV"
+      - name: 打 APK
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: ./gradlew assembleRelease --no-daemon
+      - name: 按发布规则改名
+        shell: bash
+        env:
+          TAG: ${{ github.event.inputs.version || github.ref_name }}
+        run: |
+          VERSION="${TAG#v}"
+          mkdir -p release
+          cp android/app/build/outputs/apk/release/app-release.apk "release/AloudReader-${VERSION}.apk"
+          ls -lh release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-android
+          path: release/*.apk
+          if-no-files-found: error
+
   publish:
-    needs: build
+    needs: [build, android]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

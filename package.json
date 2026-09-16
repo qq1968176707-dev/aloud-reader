@@ -32,6 +32,10 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@capacitor-community/text-to-speech": "^8.0.2",
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
     "@types/adm-zip": "^0.5.5",
     "@types/node": "^22.7.5",
     "@types/react": "^18.3.11",
