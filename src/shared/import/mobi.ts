@@ -15,8 +15,7 @@
  * from a skeleton/fragment index; it is not parsed here. Dual files fall back to their
  * MOBI6 half, which is complete.
  */
-import fs from 'node:fs';
-import path from 'node:path';
+import { basename, extname } from './pathlite';
 import { BOOK_SCHEMA, type BookManifest, type ChapterRef, type TocItem } from '@shared/types';
 import { collapse } from '@shared/text';
 import { sanitizeChapter } from './html';
@@ -443,8 +442,11 @@ function tocLinks(html: string): [string, string][] {
 
 /* ------------------------------------------------------------- import */
 
-export async function importMobi(file: string, bookId: string): Promise<ImportedBook> {
-  const buf = fs.readFileSync(file);
+export async function importMobi(data: Uint8Array, name: string, bookId: string): Promise<ImportedBook> {
+  // The PalmDB reader seeks by byte offset and the HUFF/CDIC decoder does 64-bit window
+  // arithmetic, all written against Buffer. Buffer is polyfilled in the browser build
+  // rather than rewritten — this decoder was hard enough to get right once.
+  const buf = Buffer.from(data);
   const palm = readPalm(buf);
   const header = readHeader(record(palm, 0));
 
@@ -643,7 +645,7 @@ export async function importMobi(file: string, bookId: string): Promise<Imported
   const manifest: BookManifest = {
     schema: BOOK_SCHEMA,
     id: bookId,
-    title: exthText(header, 503)[0] || header.title || path.basename(file, path.extname(file)),
+    title: exthText(header, 503)[0] || header.title || basename(name, extname(name)),
     authors: exthText(header, 100),
     language,
     description: exthText(header, 103)[0]?.replace(/<[^>]+>/g, '').slice(0, 800),

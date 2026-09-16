@@ -1,4 +1,4 @@
-import AdmZip from 'adm-zip';
+import { openZip } from './zip';
 import { XMLParser } from 'fast-xml-parser';
 import { parse as parseHtml, type HTMLElement as PHTMLElement } from 'node-html-parser';
 import { BOOK_SCHEMA, type BookManifest, type ChapterRef, type TocItem } from '@shared/types';
@@ -44,15 +44,13 @@ const sanitizeId = (raw: string, index: number): string => {
   return id || `ch${index + 1}`;
 };
 
-export async function importEpub(file: string, bookId: string): Promise<ImportedBook> {
-  const zip = new AdmZip(file);
-  const entries = new Map(
-    zip.getEntries().filter((e) => !e.isDirectory).map((e) => [e.entryName.replace(/\\/g, '/'), e]),
-  );
-  const readBuf = (p: string): Buffer | null => entries.get(p)?.getData() ?? null;
+export async function importEpub(data: Uint8Array, name: string, bookId: string): Promise<ImportedBook> {
+  void name;
+  const zip = openZip(data);
+  const readBuf = (p: string): Uint8Array | null => zip.read(p);
   const readText = (p: string): string | null => {
-    const b = readBuf(p);
-    return b ? normaliseEol(b.toString('utf8')) : null;
+    const t = zip.readText(p);
+    return t == null ? null : normaliseEol(t);
   };
 
   const containerXml = readText('META-INF/container.xml');

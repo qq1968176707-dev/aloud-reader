@@ -1,5 +1,5 @@
-import AdmZip from 'adm-zip';
-import path from 'node:path';
+import { openZip } from './zip';
+import { basename, extname } from './pathlite';
 import { marked } from 'marked';
 import { BOOK_SCHEMA, type BookManifest, type ChapterRef, type TocItem } from '@shared/types';
 import { normaliseEol } from '@shared/text';
@@ -23,17 +23,17 @@ function resolvePkg(from: string, rel: string): string {
 export class AssetPool {
   private readonly map = new Map<string, string>();
   private readonly used = new Set<string>();
-  readonly assets: { rel: string; data: Buffer }[] = [];
+  readonly assets: { rel: string; data: Uint8Array }[] = [];
 
-  add(pkgPath: string, data: Buffer, folder = 'images'): string {
+  add(pkgPath: string, data: Uint8Array, folder = 'images'): string {
     const existing = this.map.get(pkgPath);
     if (existing) return existing;
-    const base = path.posix.basename(pkgPath).replace(/[^\w.-]+/g, '_') || 'asset';
+    const base = basename(pkgPath).replace(/[^\w.-]+/g, '_') || 'asset';
     let name = base;
     let n = 1;
     while (this.used.has(name)) {
-      const ext = path.posix.extname(base);
-      name = `${path.posix.basename(base, ext)}-${n++}${ext}`;
+      const ext = extname(base);
+      name = `${basename(base, ext)}-${n++}${ext}`;
     }
     this.used.add(name);
     const rel = `${folder}/${name}`;
@@ -69,17 +69,17 @@ function validate(manifest: BookManifest): void {
   walk(manifest.toc);
 }
 
-export async function importZipBook(file: string, bookId: string): Promise<ImportedBook> {
-  const zip = new AdmZip(file);
-  const entries = new Map(zip.getEntries().filter((e) => !e.isDirectory).map((e) => [e.entryName.replace(/\\/g, '/'), e]));
+export async function importZipBook(data: Uint8Array, name: string, bookId: string): Promise<ImportedBook> {
+  void name;
+  const zip = openZip(data);
 
   // book.json may sit at the root or one folder down (as produced by "zip the folder").
-  const manifestKey = [...entries.keys()].find((k) => k === 'book.json' || k.endsWith('/book.json'));
+  const manifestKey = zip.names.find((k) => k === 'book.json' || k.endsWith('/book.json'));
   if (!manifestKey) throw new Error('压缩包里没有找到 book.json');
   const prefix = manifestKey.slice(0, manifestKey.length - 'book.json'.length);
-  const read = (pkgPath: string): Buffer | null => entries.get(prefix + pkgPath)?.getData() ?? null;
+  const read = (pkgPath: string): Uint8Array | null => zip.read(prefix + pkgPath);
 
-  const manifest = JSON.parse(zip.readAsText(entries.get(manifestKey)!)) as BookManifest;
+  const manifest = JSON.parse(zip.readText(manifestKey)!) as BookManifest;
   validate(manifest);
 
   const pool = new AssetPool();
@@ -89,7 +89,7 @@ export async function importZipBook(file: string, bookId: string): Promise<Impor
   for (const ref of manifest.readingOrder) {
     const raw = read(ref.href);
     if (!raw) throw new Error(`readingOrder 指向的文件不存在：${ref.href}`);
-    const text = normaliseEol(raw.toString('utf8'));
+    const text = normaliseEol(new TextDecoder('utf-8').decode(raw));
     const isMarkdown = (ref.format ?? (/\.(md|markdown)$/i.test(ref.href) ? 'markdown' : 'html')) === 'markdown';
     const html = isMarkdown ? (marked.parse(text, { async: false }) as string) : text;
 

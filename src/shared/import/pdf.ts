@@ -7,13 +7,24 @@
  * The cost is that original page layout and embedded images are not preserved —
  * a fixed-layout canvas view is on the v2 backlog.
  */
-import fs from 'node:fs';
 import { BOOK_SCHEMA, type BookManifest, type ChapterRef, type TocItem } from '@shared/types';
 import { collapse } from '@shared/text';
+import { basename, extname } from './pathlite';
 import type { ImportedBook } from './index';
 
-/** Non-literal specifier keeps TS from resolving pdfjs types and keeps esbuild from bundling it. */
-const dynamicImport = (m: string): Promise<any> => import(m);
+/**
+ * pdf.js is loaded through a host-supplied hook rather than a bare `import()`.
+ *
+ * Electron wants a NON-literal specifier so esbuild leaves pdf.js out of the main
+ * bundle and Node resolves it at run time; the browser build needs the opposite — a
+ * literal specifier Vite can see and bundle, because a bare module name cannot be
+ * resolved in a page. One hook satisfies both.
+ */
+type PdfjsLoader = () => Promise<any>;
+let loadPdfjs: PdfjsLoader = () => import(/* @vite-ignore */ 'pdfjs-dist/legacy/build/pdf.mjs' as string);
+export const setPdfjsLoader = (fn: PdfjsLoader): void => {
+  loadPdfjs = fn;
+};
 
 interface TextItem {
   str: string;
@@ -83,10 +94,9 @@ function pageLines(items: TextItem[]): string[] {
   return lines;
 }
 
-export async function importPdf(file: string, bookId: string): Promise<ImportedBook> {
+export async function importPdf(data: Uint8Array, name: string, bookId: string): Promise<ImportedBook> {
   void bookId;
-  const pdfjs = await dynamicImport('pdfjs-dist/legacy/build/pdf.mjs');
-  const data = new Uint8Array(fs.readFileSync(file));
+  const pdfjs = await loadPdfjs();
   const doc = await pdfjs.getDocument({
     data,
     isEvalSupported: false,
@@ -172,7 +182,7 @@ export async function importPdf(file: string, bookId: string): Promise<ImportedB
   const manifest: BookManifest = {
     schema: BOOK_SCHEMA,
     id: bookId,
-    title: collapse(info.Title || '') || file.split(/[\\/]/).pop()!.replace(/\.pdf$/i, ''),
+    title: collapse(info.Title || '') || basename(name, extname(name)),
     authors: info.Author ? [collapse(info.Author)] : [],
     language: /[一-鿿]/.test(pageParagraphs.flat().slice(0, 20).join('')) ? 'zh-CN' : 'en-US',
     readingOrder,

@@ -25,6 +25,17 @@ if (process.env.ALOUD_SMOKE_UI) {
   app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
 }
 
+/**
+ * Send the harness's reads and writes to a throwaway profile.
+ *
+ * Import checks used to land in the real library, so verifying a parser change meant
+ * adding duplicate books to whatever the user was reading. With this the same check
+ * runs against an empty profile and leaves nothing behind.
+ */
+if (process.env.ALOUD_SMOKE_USERDATA) {
+  app.setPath('userData', process.env.ALOUD_SMOKE_USERDATA);
+}
+
 protocol.registerSchemesAsPrivileged([
   {
     scheme: 'aloud',
