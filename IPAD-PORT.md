@@ -94,19 +94,23 @@ Chrome 里跑通了：
 - ⬜ **触屏实测**（需要真 iPad）：翻页手势 vs 长按选字的冲突、工具条尺寸、Apple
   Pencil 压感、掌压拒绝
 
-### C. PWA 外壳收尾
+### ~~C. PWA 外壳收尾~~ ✅
 
-- ✅ `manifest.webmanifest` + 三个图标
+- ✅ `manifest.webmanifest` + 三个图标（图标进仓于 `build/pwa/`，`npm run icon` 生成）
 - ✅ 「添加到主屏幕」引导：`src/web/A2HSHint.tsx`，只在 iOS Safari 且未安装时、
   进来 2.5 秒后出现一次，点叉记 localStorage 不再出现
-- ⬜ **部署**：`dist-web/` 是纯静态目录，放任意 HTTPS 站点即可。等用户定站点
-  （Cloudflare Pages 最省事）
+- ✅ **已部署**：<https://qq1968176707-dev.github.io/aloud-reader/>
+  推 main 自动发布（`.github/workflows/pages.yml`）。子路径靠 `ALOUD_WEB_BASE`
+  贯穿 Vite base / SW 作用域 / `/bookasset/`、`/inkasset/` / manifest。
+  换别的站点：`ALOUD_WEB_BASE=/ npm run build:web` 再把 `dist-web/` 丢上去
+  （Cloudflare Pages：`npx wrangler pages deploy dist-web`，需要你自己登录）。
 
 ### 还没做的
 
-1. 真 iPad 上过一遍（Safari 的 SW/OPFS 配额行为、朗读、Pencil）
-2. 部署到 HTTPS
-3. 词典
+1. **真 iPad 上过一遍**（Safari 的 SW/OPFS 配额行为、朗读解锁、Pencil 压感、
+   翻页手势与长按选字的冲突）——地址已经在上面，Safari 打开后「添加到主屏幕」
+2. 词典（web 版 `dict.lookup` 返回 null）
+3. 站点是公开的：谁拿到链接都能用（书全在本地，不上传，但应用本身能被别人打开）
 
 ## 已知坑（都是实测踩出来的）
 

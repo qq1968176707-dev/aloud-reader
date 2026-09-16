@@ -18,6 +18,10 @@ npm run dist:win:lite    # Windows 轻量版
 安装入口没有它，主进程的相关 IPC 直接拒绝。版本在编译期定死（`ALOUD_EDITION`，见
 `src/main/edition.ts`），不是运行时开关。两个平台各出两个版本，共四个安装包。
 
+**iPad 版（PWA）**：<https://qq1968176707-dev.github.io/aloud-reader/> — Safari 打开后
+「添加到主屏幕」即可离线使用，书和标注存在 OPFS 里。源码在 `src/web/`，进度与坑见
+`IPAD-PORT.md`。
+
 **模型不进安装包。** 内置语音（约 1GB）和克隆引擎（约 5GB）都是在应用里点「下载」按钮之后
 才拉的：应用内进度条 + 阶段提示 + 可取消，断了重来不会重复下载已有的部分。
 
