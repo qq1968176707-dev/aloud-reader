@@ -18,9 +18,20 @@ npm run dist:win:lite    # Windows 轻量版
 安装入口没有它，主进程的相关 IPC 直接拒绝。版本在编译期定死（`ALOUD_EDITION`，见
 `src/main/edition.ts`），不是运行时开关。两个平台各出两个版本，共四个安装包。
 
-**iPad 版（PWA）**：<https://qq1968176707-dev.github.io/aloud-reader/> — Safari 打开后
-「添加到主屏幕」即可离线使用，书和标注存在 OPFS 里。源码在 `src/web/`，进度与坑见
-`IPAD-PORT.md`。
+## 下载
+
+| 系统 | 怎么装 |
+| --- | --- |
+| Windows | [Releases](https://github.com/qq1968176707-dev/aloud-reader/releases/latest) 里的 `-pro-setup.exe`（安装版）或 `-pro-portable.exe`（免安装） |
+| macOS | 同页面的 `-arm64-pro.dmg`（Apple 芯片）/ `-x64-pro.dmg`（Intel），拖进「应用程序」 |
+| iPad | 不用下载：Safari 打开 <https://qq1968176707-dev.github.io/aloud-reader/> →「添加到主屏幕」 |
+
+`pro` 含声音克隆，`lite` 不含，其余一样。两个桌面包都没买证书，第一次打开要过一下
+系统拦截（Windows：更多信息 → 仍要运行；macOS：右键 → 打开）。发布靠打 tag：
+`git tag v0.1.1 && git push origin v0.1.1`，`.github/workflows/release.yml` 会在
+Windows 和 macOS 两台 runner 上各自打包再建 Release。
+
+iPad 版的源码在 `src/web/`，进度与坑见 `IPAD-PORT.md`；推 main 自动发布到 Pages。
 
 **模型不进安装包。** 内置语音（约 1GB）和克隆引擎（约 5GB）都是在应用里点「下载」按钮之后
 才拉的：应用内进度条 + 阶段提示 + 可取消，断了重来不会重复下载已有的部分。
