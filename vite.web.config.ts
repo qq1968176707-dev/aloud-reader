@@ -46,7 +46,9 @@ export default defineConfig({
     outDir: 'dist-web',
     emptyOutDir: true,
     target: 'safari17',
-    sourcemap: true,
+    // 不出 source map：这份产物要打进 APK 和公开站点，带上等于多 2.4MB 并把源码原样
+    // 摊开。要调试就跑 npm run dev:web，dev 模式本来就有。
+    sourcemap: false,
     rollupOptions: { input: r('./index-web.html') },
   },
 });
