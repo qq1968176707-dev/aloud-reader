@@ -1,0 +1,63 @@
+# 把 iPad 版（PWA）发布到 GitHub Pages。
+#
+# 地址：https://qq1968176707-dev.github.io/aloud-reader/
+# 子路径挂载靠 ALOUD_WEB_BASE：Service Worker 的作用域、/bookasset/ 路由、manifest
+# 的 start_url 都跟着它走（见 vite.web.config.ts 与 scripts/build-web.mjs）。
+#
+# 桌面版不在这里构建——它要装 Electron 并且只能在本机签名打包。
+name: Deploy iPad PWA to Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'index-web.html'
+      - 'vite.web.config.ts'
+      - 'scripts/build-web.mjs'
+      - 'build/pwa/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 一次只发布一个版本；新的推送取消排队中的旧任务，但不打断正在发布的那次。
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # PWA 图标是仓库里的 build/pwa/*.png，构建不需要 Electron，省掉 100MB 下载。
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      ALOUD_WEB_BASE: /aloud-reader/
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit -p tsconfig.sw.json
+      - run: npm run build:web
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist-web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

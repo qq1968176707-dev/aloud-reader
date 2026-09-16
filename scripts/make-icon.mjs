@@ -1,6 +1,9 @@
 /**
- * Renders build/icon.html to build/icon.png (1024²), build/icon.icns (macOS) and
- * build/icon.ico (Windows).
+ * Renders build/icon.html to build/icon.png (1024²), build/icon.icns (macOS),
+ * build/icon.ico (Windows) and build/pwa/icon-{180,192,512}.png (the iPad PWA).
+ *
+ * The PWA sizes are committed so that `npm run build:web` — and CI — never needs
+ * Electron just to draw an icon.
  *
  * Electron is the renderer because it is already a dependency and it rasterises the SVG
  * exactly as the app's own Chromium would; `iconutil` (macOS) then packs the iconset.
@@ -56,6 +59,16 @@ render.on('exit', (code) => {
   spawnSync('iconutil', ['-c', 'icns', iconset, '-o', path.join(here, 'icon.icns')], { stdio: 'inherit' });
   rmSync(iconset, { recursive: true, force: true });
   console.log('wrote build/icon.icns');
+
+  // PWA icons: home-screen (180), manifest (192, 512).
+  const pwa = path.join(here, 'pwa');
+  spawnSync('mkdir', ['-p', pwa]);
+  for (const px of [180, 192, 512]) {
+    spawnSync('sips', ['-z', String(px), String(px), path.join(here, 'icon.png'), '--out', path.join(pwa, `icon-${px}.png`)], {
+      stdio: 'ignore',
+    });
+  }
+  console.log('wrote build/pwa/icon-{180,192,512}.png');
 
   // Windows .ico. Since Vista an ICO entry may be a whole PNG file, so the container is
   // a 6-byte header plus one 16-byte directory entry per size — no BMP encoding needed.

@@ -15,6 +15,9 @@ build/*
 !build/icon.html
 !build/icon.icns
 !build/icon.ico
+# PWA 图标进仓：web 构建与 CI 就不用为了画图标去装 Electron
+!build/pwa/
+!build/pwa/*.png
 
 # 语音模型运行时：Kokoro 与 VoxCPM 的 venv + 权重（后者含 1.3GB 单文件，
 # 远超 GitHub 100MB 上限），都能按 README 重装，绝不进仓。

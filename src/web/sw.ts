@@ -24,10 +24,11 @@ declare const self: ServiceWorkerGlobalScope;
 // Injected at build time (see scripts/build-web.mjs) — the hashed asset list plus a
 // cache name that changes with every build, so an update never serves a mixed shell.
 declare const __SHELL__: string[];
+declare const __BASE__: string;
 declare const __CACHE__: string;
 
-const ASSET_BASE = '/bookasset/';
-const INK_BASE = '/inkasset/';
+const ASSET_BASE = `${__BASE__}bookasset/`;
+const INK_BASE = `${__BASE__}inkasset/`;
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -106,7 +107,7 @@ self.addEventListener('fetch', (event) => {
   if (event.request.mode === 'navigate') {
     // Single-page app: any route resolves to the shell, offline included.
     event.respondWith(
-      caches.match('/index.html').then((hit) => hit ?? fetch(event.request)),
+      caches.match(`${__BASE__}index.html`).then((hit) => hit ?? fetch(event.request)),
     );
     return;
   }

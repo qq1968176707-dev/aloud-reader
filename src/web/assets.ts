@@ -1,3 +1,6 @@
+/** Mount point of the whole app — see base.d.ts. */
+export const BASE = __BASE__;
+
 /**
  * Same-origin route the service worker serves book images from.
  *
@@ -7,7 +10,7 @@
  * in its own module lets the service worker import the constant too, instead of the
  * two sides agreeing on a magic string by accident.
  */
-export const ASSET_BASE = '/bookasset/';
+export const ASSET_BASE = `${__BASE__}bookasset/`;
 
 /** Same, for pictures dropped onto the handwriting layer (OPFS `ink/<bookId>/<file>`). */
-export const INK_BASE = '/inkasset/';
+export const INK_BASE = `${__BASE__}inkasset/`;
