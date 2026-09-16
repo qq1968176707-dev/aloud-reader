@@ -59,11 +59,22 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
       - run: ls -lh dist
+      - name: 生成发布说明（模板在 .github/release-notes.md）
+        shell: bash
+        env:
+          TAG: ${{ github.event.inputs.version || github.ref_name }}
+        run: |
+          VERSION="${TAG#v}"
+          BASE="https://github.com/${{ github.repository }}/releases/download/${TAG}"
+          sed -e "s#{{VERSION}}#${VERSION}#g" -e "s#{{BASE}}#${BASE}#g" \
+            .github/release-notes.md > notes.md
+          cat notes.md
       - name: 建 Release 并挂上安装包
         uses: softprops/action-gh-release@v2
         with:
@@ -71,28 +82,4 @@ jobs:
           name: 逐读 Aloud Reader ${{ github.event.inputs.version || github.ref_name }}
           files: dist/*
           fail_on_unmatched_files: true
-          body: |
-            ## 下载哪一个
-
-            | 系统 | 文件 |
-            | --- | --- |
-            | Windows | `AloudReader-<版本>-pro-setup.exe`（安装版）或 `-portable.exe`（免安装，双击就跑） |
-            | macOS · Apple 芯片 | `AloudReader-<版本>-arm64-pro.dmg` |
-            | macOS · Intel | `AloudReader-<版本>-x64-pro.dmg` |
-            | iPad | 不用下载：Safari 打开 <https://qq1968176707-dev.github.io/aloud-reader/> →「添加到主屏幕」 |
-
-            **pro 和 lite 的区别**：`pro` 含声音克隆（用你自己的声音朗读整本书），
-            `lite` 不含，其余功能完全一样。语音模型都不在安装包里，进应用点「下载」按钮才拉。
-
-            ## 第一次打开会被系统拦
-
-            这两个包都没有花钱买的开发者证书，所以：
-
-            - **Windows**：SmartScreen 弹「已保护你的电脑」→ 点「更多信息」→「仍要运行」
-            - **macOS**：提示「无法验证开发者」→ 在「应用程序」里**右键点图标 → 打开 → 再点打开**，
-              之后就跟普通应用一样了
-
-            ## 用之前值得知道的
-
-            - 全本地：没有账号、没有云、没有联网上传，书和笔记都在你自己的磁盘上
-            - 内置神经语音约 1GB、声音克隆引擎约 5GB，都是应用内点按钮下载，可以断了重来
+          body_path: notes.md
