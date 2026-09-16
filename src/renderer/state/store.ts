@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type {
+import type { ImportResult,
   BookIndexEntry,
   Library,
   ReadAloudSettings,
@@ -33,6 +33,10 @@ interface AppStore {
   setLibrary: (next: Library) => void;
   updateBook: (bookId: string, patch: Partial<BookIndexEntry>) => void;
   importBooks: (paths?: string[]) => Promise<void>;
+  /** Books dropped on the window — Files, because the browser host never sees paths. */
+  importFiles: (files: File[]) => Promise<void>;
+  /** Shared tail of both importers: toasts, failures, library refresh. */
+  runImport: (run: () => Promise<ImportResult[]>) => Promise<void>;
   removeBook: (bookId: string) => Promise<void>;
   refreshStats: () => Promise<void>;
   navigate: (route: Route) => void;
@@ -97,10 +101,12 @@ export const useStore = create<AppStore>((set, get) => ({
     persistLibrary(next);
   },
 
-  importBooks: async (paths) => {
+  importBooks: async (paths) => get().runImport(() => window.aloud.books.import(paths)),
+  importFiles: async (files) => get().runImport(() => window.aloud.books.importFiles(files)),
+  runImport: async (run) => {
     set({ importing: true });
     try {
-      const results = await window.aloud.books.import(paths);
+      const results = await run();
       const failed = results.filter((r) => !r.ok);
       const ok = results.filter((r) => r.ok);
       if (ok.length) {

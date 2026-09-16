@@ -27,6 +27,7 @@ declare const __SHELL__: string[];
 declare const __CACHE__: string;
 
 const ASSET_BASE = '/bookasset/';
+const INK_BASE = '/inkasset/';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -71,11 +72,11 @@ async function opfsFile(path: string): Promise<File | null> {
   }
 }
 
-async function serveBookAsset(url: URL): Promise<Response> {
-  // /bookasset/<bookId>/<rel...> maps to books/<bookId>/<rel...> in OPFS.
-  const rel = decodeURIComponent(url.pathname.slice(ASSET_BASE.length));
+/** `/bookasset/<bookId>/<rel...>` -> `books/...`, `/inkasset/<bookId>/<file>` -> `ink/...`. */
+async function serveAsset(url: URL, base: string, dir: string): Promise<Response> {
+  const rel = decodeURIComponent(url.pathname.slice(base.length));
   if (!rel || rel.includes('..')) return new Response('Forbidden', { status: 403 });
-  const file = await opfsFile(`books/${rel}`);
+  const file = await opfsFile(`${dir}/${rel}`);
   if (!file) return new Response('Not found', { status: 404 });
   const ext = rel.slice(rel.lastIndexOf('.') + 1).toLowerCase();
   return new Response(file, {
@@ -93,7 +94,12 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (url.pathname.startsWith(ASSET_BASE)) {
-    event.respondWith(serveBookAsset(url));
+    event.respondWith(serveAsset(url, ASSET_BASE, 'books'));
+    return;
+  }
+
+  if (url.pathname.startsWith(INK_BASE)) {
+    event.respondWith(serveAsset(url, INK_BASE, 'ink'));
     return;
   }
 

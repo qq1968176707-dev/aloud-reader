@@ -52,46 +52,61 @@
 
 ## 接下来要做（按顺序）
 
-### A. 验证持久化与图片（最先做，风险最高）
+### ~~A. 验证持久化与图片~~ ✅ 2026-09-17 在 mac 上验完
 
-dev 模式下 `/sw.js` 不存在，所以**书内图片还没验证过**。必须：
+用 `npm run build:web` + `python3 -m http.server 5300`（localhost 算安全上下文）在真
+Chrome 里跑通了：
 
-1. `npm run build:web` 然后用静态服务器伺服 `dist-web/`（SW 需要真实 origin；
-   localhost 算安全上下文，可以直接测）
-2. 确认 SW 注册成功，`/bookasset/<bookId>/images/xxx.jpg` 能返回图片
-3. 刷新页面确认书架还在（store 是启动时从 OPFS 读的，这条等于验证持久化）
-4. 打开书，确认分页、翻页、逐行朗读、手写层都正常
+- Service Worker 注册成功并接管页面
+- `/bookasset/<id>/images/cover.svg` 由 SW 从 OPFS 供出，200 + 正确 MIME；章节内的
+  插图在页面上真的显示出来
+- 刷新后书架还在（OPFS 持久化成立），封面、分页、目录跳转、表格都正常
+- 点一行开始朗读：行高亮 + 正文变暗 + `speechSynthesis` 真在出声（mac 上是婷婷）
 
-上次卡在这一步：我直接调 API 导入，store 的内存副本没刷新，需要 reload 才能在
-UI 里看到书——reload 本身就是持久化验证，接着做就行。
+⚠️ **Claude 的浏览器面板（in-app preview）注册不了 Service Worker**——连一行的空 SW 都报
+"An unknown error occurred when fetching the script"。这不是本项目的问题，验 SW 必须用
+真 Chrome/Safari。
 
-### B. iPad 朗读与触屏（task #3）
+⚠️ 改完 web 代码要**刷两次**才能看到新版本：SW 是 cache-first，第一次刷新只是让新 SW
+安装接管，第二次才拿到新 index.html。
 
-- TTS 只留 system 引擎（iOS Safari 的中文语音）。外观/朗读设置面板里本地模型和
-  声音克隆的入口要在 web 版隐藏——现在 `api.ts` 里只是让它们返回「不支持」，
-  UI 还会显示出来
-- ⚠️ iOS 的 `speechSynthesis` 必须由用户手势触发第一次 `speak()`，否则静默失败。
-  需要在第一次点朗读时做一次 warm-up
-- ⚠️ iOS 的 `getVoices()` 首次返回空，要等 `voiceschanged`
-- 触屏：翻页手势与文字选择/长按的冲突，工具条尺寸，手写层 Apple Pencil 压感实测
+### ~~D. 功能缺口~~ ✅ 本次补完（除词典）
 
-### C. PWA 外壳收尾（task #4）
+- **录音回放**：`recordings.url(bookId, id)` 现在两个宿主都有——桌面返回
+  `aloud://recording/…`，浏览器返回 blob URL（面板不再自己拼 URL，并在停止/卸载时
+  `revokeObjectURL`）。浏览器实测：录音写进 OPFS、blob URL 能取回。
+- **手写层图片**：`aloud://ink-img/` 同样在浏览器里解析不了。新增 `inkImageUrl()`
+  helper（对称于 `bookAssetUrl`）+ SW 的 `/inkasset/` 路由（OPFS `ink/<bookId>/<file>`）。
+  浏览器实测：写一张 PNG 进 OPFS，`/inkasset/…` 返回 200 + image/png。
+- **拖拽导入**：渲染层现在统一把 `File[]` 交给 `books.importFiles`，桌面版在 preload
+  里用 `webUtils.getPathForFile` 转回路径。浏览器实测：拖一个 zip 进窗口能导入成功
+  （之前是弹出文件选择框）。
+- **词典**：web 版仍返回 null（桌面版读的是本地词典文件）。双击查词在 iPad 上不可用。
 
-- `manifest.webmanifest` 和三个图标已生成（180/192/512）
-- 缺：首次访问的「添加到主屏幕」引导（`.a2hs-hint` 样式已写好，组件还没做）
-- 缺：部署。`dist-web/` 是纯静态目录，放任意 HTTPS 站点即可
-  （Cloudflare Pages 最省事，用户已有账号，见 `project-seo-niche-site` 的经验）
+### B. iPad 朗读与触屏
 
-### D. 还没处理的功能缺口
+- ✅ **引擎列表**：web 版只剩「系统语音」，本地模型 / 声音克隆的入口整块不渲染，
+  提示文案也换成 iPad 的说法（`ENGINE_OPTIONS` + `IS_WEB`，见 `lib/util.ts`）
+- ✅ **iOS 朗读解锁**：`src/web/install.ts` 在第一次 pointerdown/touchend/keydown 里
+  speak 一条静音空串再 cancel。原因是引擎真正 speak 之前要 await 语音列表，await
+  一结束手势就失效了，iOS 会静默不出声
+- ✅ `getVoices()` 首次为空：`systemEngine.ts` 本来就是「监听 + 轮询 + 5s 兜底」
+- ⬜ **触屏实测**（需要真 iPad）：翻页手势 vs 长按选字的冲突、工具条尺寸、Apple
+  Pencil 压感、掌压拒绝
 
-- **录音**：`api.ts` 里的 recordings 已实现（OPFS 存 WAV），但 `RecordingsPanel`
-  用 `aloud://recording/...` URL 播放，web 版要改用 `recordings.url()`（已提供，
-  返回 blob URL），**这处还没接**
-- **词典**：web 版 `dict.lookup` 直接返回 null
-- **拖拽导入**：`pathForFile` 在 web 版返回文件名而非路径，Library 的拖拽处理
-  需要改成直接用 File 对象调 `books.importFiles`
+### C. PWA 外壳收尾
 
----
+- ✅ `manifest.webmanifest` + 三个图标
+- ✅ 「添加到主屏幕」引导：`src/web/A2HSHint.tsx`，只在 iOS Safari 且未安装时、
+  进来 2.5 秒后出现一次，点叉记 localStorage 不再出现
+- ⬜ **部署**：`dist-web/` 是纯静态目录，放任意 HTTPS 站点即可。等用户定站点
+  （Cloudflare Pages 最省事）
+
+### 还没做的
+
+1. 真 iPad 上过一遍（Safari 的 SW/OPFS 配额行为、朗读、Pencil）
+2. 部署到 HTTPS
+3. 词典
 
 ## 已知坑（都是实测踩出来的）
 
@@ -130,3 +145,19 @@ npm run smoke:ui         # 53 个 UI 探针
 
 `parity-baseline.json` 不进仓（含书名与本机绝对路径）。新机器先跑
 `node scripts/parity.mjs --record` 生成自己的基线。
+
+## 在 mac 上怎么调 web 版
+
+```bash
+npm run build:web
+cd dist-web && python3 -m http.server 5300     # localhost 也是安全上下文，SW 能注册
+```
+
+然后用**真浏览器**打开 http://127.0.0.1:5300/index.html（不要用 Claude 的浏览器面板，
+它禁用了 Service Worker）。想在页面里直接导入书，把 zip 放进 `dist-web/`（注意
+`npm run build:web` 会清空这个目录），再在控制台里：
+
+```js
+const buf = await (await fetch('/sample-book.zip')).arrayBuffer();
+await window.aloud.books.importFiles([new File([buf], 'sample-book.zip')]);
+```

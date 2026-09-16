@@ -8,3 +8,6 @@
  * two sides agreeing on a magic string by accident.
  */
 export const ASSET_BASE = '/bookasset/';
+
+/** Same, for pictures dropped onto the handwriting layer (OPFS `ink/<bookId>/<file>`). */
+export const INK_BASE = '/inkasset/';

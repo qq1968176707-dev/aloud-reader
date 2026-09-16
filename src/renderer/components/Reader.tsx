@@ -34,7 +34,7 @@ import { createTurner, runPageTurn, snapshotWindow, type PageTurner } from '../l
 import { playPageTurn } from '../lib/pageSound';
 import { exportAnnotations } from '../lib/annotationsExport';
 import { ReadAloudController, type RaStatus, type ReadAloudHost } from '../tts/controller';
-import { IS_MAC, cx, debounce, formatMinutes, kbd, uid } from '../lib/util';
+import { IS_MAC, cx, debounce, formatMinutes, inkImageUrl, kbd, uid } from '../lib/util';
 import ChapterView from './ChapterView';
 import ReadAloudBar from './ReadAloudBar';
 import { AnnotationsPanel, AppearancePanel, PanelShell, SearchPanel, TocPanel } from './ReaderPanels';
@@ -632,7 +632,7 @@ export default function Reader({ bookId }: { bookId: string }): JSX.Element {
         const img = new Image();
         img.onload = () => resolve({ w: img.naturalWidth || 300, h: img.naturalHeight || 200 });
         img.onerror = () => resolve(null);
-        img.src = `aloud://ink-img/${bookId}/${file}`;
+        img.src = inkImageUrl(bookId, file);
       });
       if (!dims) continue;
       const pt = inkPoint({ clientX: vr.left + vr.width / 2 + i * 26, clientY: vr.top + vr.height / 2 + i * 26 });

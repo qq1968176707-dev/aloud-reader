@@ -13,6 +13,7 @@ export default function App(): JSX.Element {
   const navigate = useStore((s) => s.navigate);
   const theme = useStore((s) => s.settings.theme);
   const importBooks = useStore((s) => s.importBooks);
+  const importFiles = useStore((s) => s.importFiles);
   const toasts = useStore((s) => s.toasts);
   const dismissToast = useStore((s) => s.dismissToast);
   const [dragging, setDragging] = useState(false);
@@ -53,18 +54,12 @@ export default function App(): JSX.Element {
       event.preventDefault();
       dragDepth.current = 0;
       setDragging(false);
-      const paths = Array.from(event.dataTransfer.files)
-        .map((file) => {
-          try {
-            return window.aloud.pathForFile(file);
-          } catch {
-            return '';
-          }
-        })
-        .filter(Boolean);
-      if (paths.length) void importBooks(paths);
+      // File objects, not paths: the browser host has no paths, and the desktop host
+      // turns them back into paths in preload.
+      const files = Array.from(event.dataTransfer.files);
+      if (files.length) void importFiles(files);
     },
-    [importBooks],
+    [importFiles],
   );
 
   if (!ready) return <div className="empty">正在打开书架…</div>;

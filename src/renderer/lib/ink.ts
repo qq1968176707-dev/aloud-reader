@@ -1,5 +1,6 @@
 import type { InkImage, InkItem, InkShape, InkStroke, InkText } from '@shared/types';
 import type { BlockModel } from './anchors';
+import { inkImageUrl } from './util';
 
 /**
  * Handwriting and page elements over reflowable text.
@@ -242,7 +243,7 @@ export function renderInk(
       const p = projection(content, blocks, it);
       if (!p) continue;
       const el = document.createElementNS(NS, 'image');
-      el.setAttribute('href', `aloud://ink-img/${bookId}/${it.file}`);
+      el.setAttribute('href', inkImageUrl(bookId, it.file));
       el.setAttribute('x', String(p.r.x + it.nx * p.r.w));
       el.setAttribute('y', String(p.r.y + it.ny * p.r.w));
       el.setAttribute('width', String(it.nw * p.r.w));

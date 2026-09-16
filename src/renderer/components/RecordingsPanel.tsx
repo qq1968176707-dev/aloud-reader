@@ -49,20 +49,34 @@ export default function RecordingsPanel({
   useEffect(
     () => () => {
       audioRef.current?.pause();
+      const src = audioRef.current?.src;
+      if (src && src.startsWith('blob:')) URL.revokeObjectURL(src);
       audioRef.current = null;
     },
     [],
   );
 
-  const play = (rec: RecordingMeta): void => {
+  /** Blob URLs (the web host) leak until revoked; the desktop's aloud:// URL is inert. */
+  const releaseSrc = (): void => {
+    const src = audioRef.current?.src;
+    if (src && src.startsWith('blob:')) URL.revokeObjectURL(src);
+  };
+
+  const play = async (rec: RecordingMeta): Promise<void> => {
     if (playingId === rec.id) {
       audioRef.current?.pause();
+      releaseSrc();
       audioRef.current = null;
       setPlayingId(null);
       return;
     }
     audioRef.current?.pause();
-    const audio = new Audio(`aloud://recording/${bookId}/${rec.id}`);
+    releaseSrc();
+    // The URL comes from the host: a protocol URL on the desktop, a blob URL in the
+    // browser, where the WAV lives in OPFS and no URL scheme can reach it.
+    const src = await window.aloud.recordings.url(bookId, rec.id);
+    if (!src) return;
+    const audio = new Audio(src);
     audioRef.current = audio;
     lastMarkT.current = -1;
     audio.ontimeupdate = () => {
@@ -102,7 +116,7 @@ export default function RecordingsPanel({
             <button
               className={`btn icon play-toggle${playingId === rec.id ? ' on' : ''}`}
               title={playingId === rec.id ? '停止' : '播放'}
-              onClick={() => play(rec)}
+              onClick={() => void play(rec)}
             >
               <Icon name={playingId === rec.id ? 'pause' : 'play'} size={15} />
             </button>

@@ -8,13 +8,27 @@ import type {
   TtsVoice,
 } from '@shared/types';
 import type { RaStatus } from '../tts/controller';
-import { IS_MAC, clamp, cx, kbd } from '../lib/util';
+import { IS_MAC, IS_WEB, clamp, cx, kbd } from '../lib/util';
 import { HAS_CLONE } from '../edition';
 import type { InstallProgress } from '../../main/tts/installer';
 import { Icon, Segmented, Slider, Switch, useDismiss } from './ui';
 import VoiceRecorder from './VoiceRecorder';
 
 const SAMPLE_WAV = IS_MAC ? '/Users/me/voices/角色.wav' : 'D:\\voices\\角色.wav';
+
+/**
+ * iPad has no Python: the model servers and the cloning engine cannot exist there, so
+ * the browser build offers only the platform's own voices instead of showing entries
+ * that would fail. (Edge's free endpoint is dead everywhere — desktop keeps it only
+ * because the setting already exists in people's settings.json.)
+ */
+const ENGINE_OPTIONS: { value: ReadAloudSettings['engine']; label: string }[] = IS_WEB
+  ? [{ value: 'system', label: '系统语音' }]
+  : [
+      { value: 'system', label: '系统离线' },
+      { value: 'local', label: '本地模型' },
+      { value: 'edge', label: 'Edge' },
+    ];
 
 interface Props {
   status: RaStatus;
@@ -151,16 +165,12 @@ export default function ReadAloudBar({
             </label>
             <Segmented
               value={settings.engine}
-              options={[
-                { value: 'system', label: '系统离线' },
-                { value: 'local', label: '本地模型' },
-                { value: 'edge', label: 'Edge' },
-              ]}
+              options={ENGINE_OPTIONS}
               onChange={(engine) => patch({ engine })}
             />
           </div>
 
-          {settings.engine === 'local' ? (
+          {settings.engine === 'local' && !IS_WEB ? (
             <LocalSettings config={settings.local} patch={(local) => patch({ local: { ...settings.local, ...local } })} />
           ) : null}
 
@@ -234,7 +244,9 @@ export default function ReadAloudBar({
           />
 
           <p className="ra-hint">
-            {settings.engine === 'system'
+            {IS_WEB
+              ? 'iPad 用的是系统自带的中文语音（设置 › 辅助功能 › 朗读内容 里可以下载更自然的音色）。整本书都离线朗读，不需要联网。'
+              : settings.engine === 'system'
               ? IS_MAC
                 ? '系统语音完全离线，用的是 macOS 自带语音（婷婷 / 美嘉等，可在「系统设置 › 辅助功能 › 朗读内容」里下载更多）；零配置、断网可用。'
                 : '系统语音完全离线，用的是 Windows SAPI5 语音库；音色机械，但零配置、断网可用。'

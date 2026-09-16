@@ -24,7 +24,9 @@ const invoke = <T,>(channel: string, ...args: unknown[]): Promise<T> =>
   ipcRenderer.invoke(channel, ...args) as Promise<T>;
 
 const api = {
-  platform: process.platform,
+  // Widened because this file is also the *type* contract for the browser host
+  // (src/web/api.ts), which reports 'web' — the renderer branches on it.
+  platform: process.platform as NodeJS.Platform | 'web',
   app: {
     dataDir: () => invoke<string>('app:dataDir'),
     openExternal: (url: string) => invoke<void>('app:openExternal', url),
@@ -37,6 +39,13 @@ const api = {
   },
   books: {
     import: (paths?: string[]) => invoke<ImportResult[]>('books:import', paths),
+    /** Same entry point as the web host: the renderer hands over dropped File objects
+     *  and each host works out how to read them (paths here, bytes in the browser). */
+    importFiles: (files: File[]) =>
+      invoke<ImportResult[]>(
+        'books:import',
+        files.map((f) => webUtils.getPathForFile(f)),
+      ),
     remove: (bookId: string) => invoke<void>('books:remove', bookId),
     manifest: (bookId: string) => invoke<BookManifest | null>('books:manifest', bookId),
     plain: (bookId: string) => invoke<PlainIndex | null>('books:plain', bookId),
@@ -90,6 +99,10 @@ const api = {
     end: (id: string, meta: { title: string; timeline: RecordingMark[] }) =>
       invoke<RecordingMeta | null>('recording:end', id, meta),
     list: (bookId: string) => invoke<RecordingMeta[]>('recordings:list', bookId),
+    /** Playback URL. Desktop serves the WAV over its own protocol; the web host
+     *  returns a blob URL instead, so the panel never builds the URL itself. */
+    url: (bookId: string, id: string): Promise<string | null> =>
+      Promise.resolve(`aloud://recording/${bookId}/${id}`),
     remove: (bookId: string, id: string) => invoke<void>('recording:delete', bookId, id),
   },
   voice: {

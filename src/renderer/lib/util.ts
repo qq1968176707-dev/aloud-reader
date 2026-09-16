@@ -5,6 +5,8 @@ export const uid = (): string =>
   (globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
 
 export const IS_MAC = window.aloud?.platform === 'darwin';
+/** The browser build (iPad PWA): no Python servers, so system speech is the only engine. */
+export const IS_WEB = window.aloud?.platform === 'web';
 
 /** Shortcut label for tooltips: `kbd('F')` -> "⌘F" on macOS, "Ctrl+F" elsewhere. */
 export const kbd = (key: string, shift = false): string =>
@@ -82,6 +84,17 @@ export const bookAssetUrl = (bookId: string, rel?: string): string | undefined =
   if (!rel) return undefined;
   const base = (window as { __aloudAssetBase?: string }).__aloudAssetBase ?? 'aloud://book/';
   return `${base}${bookId}/${rel.split('/').map(encodeURIComponent).join('/')}`;
+};
+
+/**
+ * URL for a picture on the handwriting layer.
+ *
+ * Same split as `bookAssetUrl`: `aloud://ink-img/` on the desktop, a service-worker
+ * path in the browser. Both hosts store the file under `ink/<bookId>/<file>`.
+ */
+export const inkImageUrl = (bookId: string, file: string): string => {
+  const base = (window as { __aloudInkBase?: string }).__aloudInkBase ?? 'aloud://ink-img/';
+  return `${base}${bookId}/${encodeURIComponent(file)}`;
 };
 
 /** Deterministic pastel pair for generated covers. */
