@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Download VoxCPM weights and prove one synthesis works. Run by install-voxcpm.bat."""
+"""Download VoxCPM weights and prove one synthesis works. Run by install-voxcpm.bat / install-voxcpm.sh."""
 import os
 import sys
 import time
@@ -30,7 +30,7 @@ print("weights at %s" % path, flush=True)
 
 import torch  # noqa: E402
 
-print("torch %s | cuda available: %s" % (torch.__version__, torch.cuda.is_available()), flush=True)
+print("torch %s | cuda available: %s | mps available: %s" % (torch.__version__, torch.cuda.is_available(), getattr(torch.backends, "mps", None) is not None and torch.backends.mps.is_available()), flush=True)
 
 from voxcpm import VoxCPM  # noqa: E402
 

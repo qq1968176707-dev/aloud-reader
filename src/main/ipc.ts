@@ -29,8 +29,10 @@ import {
   endRecording,
   listRecordings,
 } from './recordings';
-import { spawn } from 'node:child_process';
+import { openInstaller, type RuntimeName } from './tts/runtime';
+import { cancelInstall, installState, startInstall, type InstallName } from './tts/installer';
 import { lookup } from './dictionary';
+import { HAS_CLONE } from './edition';
 
 const readManifest = (bookId: string): BookManifest | null =>
   store.readJson<BookManifest | null>(P.manifest(bookId), null);
@@ -207,20 +209,30 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   ipcMain.handle('tts:localTest', (_e, config: LocalTtsConfig) => testLocal(config));
   ipcMain.handle('tts:kokoroStatus', () => kokoroStatus());
   ipcMain.handle('tts:kokoroStart', () => ensureKokoro());
-  const runInstaller = (script: string, title: string): void => {
+  // In-app install (button + progress bar). The terminal path stays available for
+  // anyone who wants to watch pip themselves, or to retry after a failure.
+  ipcMain.handle('tts:install', (_e, name: InstallName) => {
+    if (name === 'voxcpm' && !HAS_CLONE) throw new Error('这个版本不含声音克隆引擎');
+    return startInstall(name, getWindow);
+  });
+  ipcMain.handle('tts:installState', (_e, name: InstallName) => installState(name));
+  ipcMain.handle('tts:installCancel', (_e, name: InstallName) => cancelInstall(name));
+  const runInstaller = (base: string, runtime: RuntimeName, title: string): void => {
     const dir = scriptsDir();
     if (!dir) throw new Error('找不到 tts-server 目录');
-    // Visible console so the user can watch pip/model download progress.
-    spawn('cmd', ['/c', 'start', `"${title}"`, 'cmd', '/k', path.join(dir, script)], {
-      cwd: dir,
-      detached: true,
-      stdio: 'ignore',
-    }).unref();
+    openInstaller(dir, base, runtime, title);
   };
-  ipcMain.handle('tts:kokoroInstall', () => runInstaller('install.bat', '内置语音安装'));
-  ipcMain.handle('tts:voxcpmInstall', () => runInstaller('install-voxcpm.bat', '声音克隆引擎安装'));
-  ipcMain.handle('tts:voxcpmStatus', () => voxcpmStatus());
-  ipcMain.handle('tts:voxcpmStart', () => ensureVoxcpm());
+  ipcMain.handle('tts:kokoroInstall', () => runInstaller('install', 'runtime', '内置语音安装'));
+  ipcMain.handle('tts:voxcpmInstall', () => {
+    if (!HAS_CLONE) throw new Error('这个版本不含声音克隆引擎');
+    runInstaller('install-voxcpm', 'runtime-voxcpm', '声音克隆引擎安装');
+  });
+  ipcMain.handle('tts:voxcpmStatus', () =>
+    HAS_CLONE ? voxcpmStatus() : { installed: false, running: false, ready: false, device: '', error: '这个版本不含声音克隆引擎' },
+  );
+  ipcMain.handle('tts:voxcpmStart', () =>
+    HAS_CLONE ? ensureVoxcpm() : { ok: false, message: '这个版本不含声音克隆引擎' },
+  );
 
   ipcMain.handle('voice:save', (_e, req: SaveVoiceRequest) => saveVoiceSample(req));
   ipcMain.handle('voice:delete', (_e, file: string) => deleteVoiceSample(file));

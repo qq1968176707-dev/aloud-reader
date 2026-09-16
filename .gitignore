@@ -6,7 +6,14 @@ release/
 .DS_Store
 samples/*.zip
 .eb-cache/
-build/icon.png
+# 图标：源是 build/icon.html，`npm run icon` 生成 png/icns/ico。
+# 仓库根的 .gitignore 忽略了所有 build/，这里先放行目录再挑文件——icns/ico 必须进仓，
+# 否则另一台机器打包时 electron-builder 找不到图标。
+!build/
+build/*
+!build/icon.html
+!build/icon.icns
+!build/icon.ico
 
 # 语音模型运行时：Kokoro 与 VoxCPM 的 venv + 权重（后者含 1.3GB 单文件，
 # 远超 GitHub 100MB 上限），都能按 README 重装，绝不进仓。

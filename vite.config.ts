@@ -4,7 +4,11 @@ import { fileURLToPath } from 'node:url';
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
+const edition = process.env.ALOUD_EDITION === 'lite' ? 'lite' : 'pro';
+
 export default defineConfig({
+  // 'lite' = 不含声音克隆的版本（见 src/main/edition.ts）
+  define: { __ALOUD_EDITION__: JSON.stringify(edition) },
   // Production is served from the custom `aloud://app/` scheme, so assets must be relative.
   base: './',
   plugins: [react()],

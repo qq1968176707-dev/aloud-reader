@@ -2,10 +2,12 @@
  * Manager for the voice-cloning server (tts-server/voxcpm_server.py).
  *
  * Mirrors kokoro.ts: the app starts it on demand and kills it on quit. Kept separate
- * because it has its own venv (PyTorch CUDA, ~5GB) that most users will never install.
+ * because it has its own venv (PyTorch CUDA ~5GB on Windows; CPU/MPS torch on macOS) that
+ * most users will never install.
  */
 import { app } from 'electron';
-import { killTree } from './killTree';
+import { killTree, serverSpawnOptions } from './killTree';
+import { runtimeDir as runtimeFor, scriptFile, venvPython } from './runtime';
 import { spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -17,8 +19,7 @@ const BASE = `http://127.0.0.1:${VOXCPM_PORT}`;
 let child: ChildProcess | null = null;
 let starting: Promise<{ ok: boolean; message: string }> | null = null;
 
-const runtimeDir = (dir: string): string => path.join(dir, 'runtime-voxcpm');
-const venvPython = (dir: string): string => path.join(runtimeDir(dir), 'venv', 'Scripts', 'python.exe');
+const runtimeDir = (dir: string): string => runtimeFor(dir, 'runtime-voxcpm');
 
 export interface VoxcpmStatus {
   installed: boolean;
@@ -41,7 +42,7 @@ async function health(timeoutMs = 1200): Promise<{ ready: boolean; device: strin
 
 export async function voxcpmStatus(): Promise<VoxcpmStatus> {
   const dir = scriptsDir();
-  const installed = !!dir && fs.existsSync(venvPython(dir));
+  const installed = !!dir && fs.existsSync(venvPython(runtimeDir(dir)));
   const live = await health(600);
   return { installed, running: !!live, ready: !!live?.ready, device: live?.device ?? '' };
 }
@@ -54,15 +55,14 @@ export async function ensureVoxcpm(): Promise<{ ok: boolean; message: string }> 
 
     const dir = scriptsDir();
     if (!dir) return { ok: false, message: '找不到 tts-server 目录' };
-    const python = venvPython(dir);
+    const python = venvPython(runtimeDir(dir));
     if (!fs.existsSync(python)) {
-      return { ok: false, message: `克隆引擎未安装：请运行 ${path.join(dir, 'install-voxcpm.bat')}（约 5GB，一次即可）` };
+      return { ok: false, message: `克隆引擎未安装：请运行 ${path.join(dir, scriptFile('install-voxcpm'))}（约 5GB，一次即可）` };
     }
     if (!child || child.exitCode !== null) {
       child = spawn(python, [path.join(dir, 'voxcpm_server.py'), '--port', String(VOXCPM_PORT)], {
+        ...serverSpawnOptions,
         cwd: dir,
-        windowsHide: true,
-        stdio: 'ignore',
         env: { ...process.env, ALOUD_VOXCPM_DATA: runtimeDir(dir) },
       });
       child.on('exit', () => {

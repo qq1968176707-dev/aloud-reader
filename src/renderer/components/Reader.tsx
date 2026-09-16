@@ -34,7 +34,7 @@ import { createTurner, runPageTurn, snapshotWindow, type PageTurner } from '../l
 import { playPageTurn } from '../lib/pageSound';
 import { exportAnnotations } from '../lib/annotationsExport';
 import { ReadAloudController, type RaStatus, type ReadAloudHost } from '../tts/controller';
-import { cx, debounce, formatMinutes, uid } from '../lib/util';
+import { IS_MAC, cx, debounce, formatMinutes, kbd, uid } from '../lib/util';
 import ChapterView from './ChapterView';
 import ReadAloudBar from './ReadAloudBar';
 import { AnnotationsPanel, AppearancePanel, PanelShell, SearchPanel, TocPanel } from './ReaderPanels';
@@ -2294,7 +2294,7 @@ export default function Reader({ bookId }: { bookId: string }): JSX.Element {
         </button>
         <button
           className={cx('btn icon', rightPanel === 'search' && 'on')}
-          title="搜索 (Ctrl+F)"
+          title={`搜索 (${kbd('F')})`}
           onClick={() => setRightPanel(rightPanel === 'search' ? null : 'search')}
         >
           <Icon name="search" />
@@ -2308,7 +2308,7 @@ export default function Reader({ bookId }: { bookId: string }): JSX.Element {
         </button>
         <button
           className={cx('btn', 'icon', bookmarkHere && 'on')}
-          title={bookmarkHere ? '移除书签 (Ctrl+B)' : '添加书签 (Ctrl+B)'}
+          title={`${bookmarkHere ? '移除书签' : '添加书签'} (${kbd('B')})`}
           onClick={toggleBookmark}
         >
           <Icon name="bookmark" filled={bookmarkHere} />
@@ -2717,10 +2717,10 @@ export default function Reader({ bookId }: { bookId: string }): JSX.Element {
             </>
           ) : null}
           <span className="divider" />
-          <button className="btn icon" title="撤销 (Ctrl+Z)" onClick={undoInk}>
+          <button className="btn icon" title={`撤销 (${kbd('Z')})`} onClick={undoInk}>
             <Icon name="undo" size={15} />
           </button>
-          <button className="btn icon" title="重做 (Ctrl+Y)" onClick={redoInk}>
+          <button className="btn icon" title={`重做 (${IS_MAC ? kbd('Z', true) : kbd('Y')})`} onClick={redoInk}>
             <Icon name="redo" size={15} />
           </button>
           <button className="btn icon" title="完成" onClick={() => setInkMode(false)}>

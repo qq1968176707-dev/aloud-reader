@@ -18,6 +18,10 @@ if (process.platform === 'win32') {
   for (const image of ['Aloud Reader.exe', 'electron.exe']) {
     spawnSync('taskkill', ['/F', '/IM', image, '/T'], { stdio: 'ignore' });
   }
+} else {
+  // Only this project's dev Electron and the packaged app — never other Electron apps.
+  spawnSync('pkill', ['-f', `${path.dirname(electronPath)}`], { stdio: 'ignore' });
+  spawnSync('pkill', ['-x', 'Aloud Reader'], { stdio: 'ignore' });
 }
 
 const [mode, file] = process.argv.slice(2);

@@ -1,6 +1,9 @@
 import type { AloudApi } from '../main/preload';
 
 declare global {
+  /** Build edition, inlined by Vite (see vite.config.ts). */
+  const __ALOUD_EDITION__: 'pro' | 'lite';
+
   interface Window {
     aloud: AloudApi;
   }

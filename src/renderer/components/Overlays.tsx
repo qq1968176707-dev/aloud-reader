@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { DictEntry, HighlightColor } from '@shared/types';
 import { Icon, useDismiss } from './ui';
+import { kbd } from '../lib/util';
 
 const COLORS: HighlightColor[] = ['yellow', 'green', 'blue', 'pink', 'purple'];
 
@@ -157,7 +158,7 @@ export function NoteEditor({
       <textarea
         autoFocus
         value={value}
-        placeholder="写点什么…（Ctrl+Enter 保存）"
+        placeholder={`写点什么…（${kbd('Enter')} 保存）`}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) onSave(value);

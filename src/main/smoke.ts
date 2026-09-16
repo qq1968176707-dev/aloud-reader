@@ -89,6 +89,12 @@ const DIAGNOSTICS = `(async () => { try { return await (async () => {
     },
     bottombar: [...document.querySelectorAll('.bottombar span')].map((s) => s.textContent),
   };
+  // A probe that throws must not swallow everything measured before it — the partial
+  // result is usually what says which surface was missing.
+  window.__aloudOut = out;
+  // A probe that throws must not swallow everything measured before it — the partial
+  // result is usually what says which surface was missing.
+  window.__aloudOut = out;
 
   // --- jump to chapter 2 through the real table of contents
   document.querySelector('[title="目录"]')?.click();
@@ -862,9 +868,21 @@ const DIAGNOSTICS = `(async () => { try { return await (async () => {
   out.confirmDialog = await (async () => {
     store.getState().navigate({ name: 'library' });
     await wait(900);
+    // The shelf opens on 现在阅读, and a book the harness navigated to programmatically was
+    // never promoted out of 想读 — so ask for 全部图书 before counting cards.
+    [...document.querySelectorAll('.side-item')].find((b) => b.textContent.includes('全部图书'))?.click();
+    await wait(500);
     const before = document.querySelectorAll('.book-card').length;
     const card = document.querySelector('.book-card');
-    if (!card) return { skipped: 'no books' };
+    const backToReader = async () => {
+      store.getState().navigate({ name: 'reader', bookId: book.id });
+      await wait(1500);
+    };
+    // Every later probe drives the reader: never leave the library mounted behind us.
+    if (!card) {
+      await backToReader();
+      return { skipped: 'no books' };
+    }
     const r = card.getBoundingClientRect();
     card.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + 40, clientY: r.top + 40 }));
     await wait(400);
@@ -878,8 +896,7 @@ const DIAGNOSTICS = `(async () => { try { return await (async () => {
     await wait(350);
     const dialogGone = !document.querySelector('.confirm-sheet');
     const after = document.querySelectorAll('.book-card').length;
-    store.getState().navigate({ name: 'reader', bookId: book.id });
-    await wait(1500);
+    await backToReader();
     return {
       menuShown,
       dialogShown,
@@ -940,6 +957,49 @@ const DIAGNOSTICS = `(async () => { try { return await (async () => {
     };
   })();
 
+  // Model download: the button, the bar, the cancel. Only with ALOUD_SMOKE_TTS_FAKE=1 +
+  // ALOUD_TTS_DIR pointing at stub scripts — otherwise this would pull a 5GB engine.
+  out.engineInstall = await (async () => {
+    if (!window.__aloudSmokeInstall) return { skipped: 'set ALOUD_SMOKE_TTS_FAKE=1 with ALOUD_TTS_DIR' };
+    document.querySelector('[title="逐行朗读"]')?.click();
+    await wait(600);
+    document.querySelector('.ra-bar [title="朗读设置"]')?.click();
+    await wait(400);
+    store.getState().patchReadAloud({ engine: 'local' });
+    await wait(400);
+    const presetSelect = [...document.querySelectorAll('.ra-settings select')].find((el) =>
+      [...el.options].some((o) => o.value === 'voxcpm'),
+    );
+    if (!presetSelect) return { ok: false, why: 'no preset select' };
+    presetSelect.value = 'voxcpm';
+    presetSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    await wait(900);
+    const btn = [...document.querySelectorAll('button')].find((b) => b.textContent.includes('下载声音克隆引擎'));
+    if (!btn) return { ok: false, why: 'no download button' };
+    btn.click();
+    await wait(1200);
+    const barShown = !!document.querySelector('.engine-bar');
+    let percent = null;
+    let phase = null;
+    for (let i = 0; i < 12; i++) {
+      await wait(700);
+      const head = document.querySelector('.engine-install-head');
+      const text = head ? head.textContent : '';
+      const m = /(\\d{1,3})%/.exec(text || '');
+      if (m) percent = Number(m[1]);
+      if (text && text.includes('·')) phase = text.split('·')[1].trim().slice(0, 12);
+      if (percent) break;
+    }
+    const line = document.querySelector('.engine-install-line')?.textContent ?? null;
+    [...document.querySelectorAll('button')].find((b) => b.textContent.includes('取消下载'))?.click();
+    await wait(900);
+    const stopped = !document.querySelector('.engine-bar');
+    store.getState().patchReadAloud({ engine: 'system' });
+    document.querySelector('.ra-bar [title="关闭朗读"]')?.click();
+    await wait(300);
+    return { barShown, percent, phase, line, stopped, ok: barShown && percent > 0 && stopped };
+  })();
+
   // Handwriting: draw a pen stroke with synthetic PointerEvents, survive a font-size
   // reflow (block re-projection), erase it, undo a second stroke, verify persistence.
   out.ink = await (async () => {
@@ -990,11 +1050,11 @@ const DIAGNOSTICS = `(async () => { try { return await (async () => {
     await wait(150);
     await draw();
     const beforeUndo = paths();
-    document.querySelector('.ink-toolbar [title="撤销 (Ctrl+Z)"]')?.click();
+    document.querySelector('.ink-toolbar [title^="撤销"]')?.click();
     await wait(400);
     const afterUndo = paths();
     // Unwind every demo commit (state) then restore the exact pre-probe file.
-    for (let i = 0; i < 6; i++) document.querySelector('.ink-toolbar [title="撤销 (Ctrl+Z)"]')?.click();
+    for (let i = 0; i < 6; i++) document.querySelector('.ink-toolbar [title^="撤销"]')?.click();
     await wait(1100);
     await window.aloud.ink.save(fileBefore);
     document.querySelector('.ink-toolbar [title="完成"]')?.click();
@@ -1306,6 +1366,9 @@ const DIAGNOSTICS = `(async () => { try { return await (async () => {
   out.libraryGrid = await (async () => {
     store.getState().navigate({ name: 'library' });
     await wait(900);
+    // 现在阅读 can be empty on a fresh profile; measure the shelf that always has the books.
+    [...document.querySelectorAll('.side-item')].find((b) => b.textContent.includes('全部图书'))?.click();
+    await wait(500);
     // Squeeze the shelf into several rows: row spacing is the thing being measured, and a
     // wide window puts every book on one row where there is no row spacing to check.
     const lib = document.querySelector('.library');
@@ -1616,6 +1679,10 @@ const DIAGNOSTICS = `(async () => { try { return await (async () => {
   }
 
   store.getState().patchReadAloud({ rate: 2, linePauseMs: 0 });
+  // An earlier probe may have left the TOC / annotations panel open, and then the click
+  // that is supposed to start read-aloud lands in the panel instead of on a line.
+  for (const close of document.querySelectorAll('.panel [title="关闭 (Esc)"]')) close.click();
+  await wait(400);
   document.querySelector('[title="逐行朗读"]')?.click();
   await wait(600);
   out.readAloudBarShown = !!document.querySelector('.ra-bar');
@@ -1695,7 +1762,7 @@ const DIAGNOSTICS = `(async () => { try { return await (async () => {
   out.settingsAfterFlush = await window.aloud.settings.get();
 
   return out;
-})(); } catch (e) { return { scriptError: String(e), stack: e && e.stack }; } })()`;
+})(); } catch (e) { return { scriptError: String(e), stack: e && e.stack, partial: window.__aloudOut }; } })()`;
 
 export async function runUiSmoke(win: BrowserWindow): Promise<void> {
   const emit = emitter();
@@ -1729,7 +1796,7 @@ export async function runUiSmoke(win: BrowserWindow): Promise<void> {
     const wantVoice = JSON.stringify(process.env.ALOUD_SMOKE_VOICE ?? '');
     const diagnostics = await win.webContents.executeJavaScript(
       `window.__aloudSmokeLocalTts = ${localBase} || null; window.__aloudSmokeBook = ${wantBook} || null;` +
-        ` window.__aloudSmokeVoice = ${wantVoice} || null; ${DIAGNOSTICS}`,
+        ` window.__aloudSmokeVoice = ${wantVoice} || null; window.__aloudSmokeInstall = ${JSON.stringify(process.env.ALOUD_SMOKE_TTS_FAKE === '1')}; ${DIAGNOSTICS}`,
       true,
     );
     // Picture paste probe with a freshly written clipboard: this machine shares its
@@ -1851,7 +1918,7 @@ export async function runUiSmoke(win: BrowserWindow): Promise<void> {
       await js(`(async () => {
         const wait = (ms) => new Promise((r) => setTimeout(r, ms));
         // Undo all demo items (state) then restore the exact pre-shot file.
-        for (let i = 0; i < 5; i++) document.querySelector('.ink-toolbar [title="撤销 (Ctrl+Z)"]')?.click();
+        for (let i = 0; i < 5; i++) document.querySelector('.ink-toolbar [title^="撤销"]')?.click();
         await wait(1100);
         if (window.__inkShotBefore) await window.aloud.ink.save(window.__inkShotBefore);
         document.querySelector('.ink-toolbar [title="完成"]')?.click();

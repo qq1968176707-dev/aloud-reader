@@ -498,6 +498,11 @@ input.control:focus {
   padding-right: calc(100vw - env(titlebar-area-width, 100vw) - env(titlebar-area-x, 0px) + 14px);
   border-bottom: 1px solid transparent;
 }
+/* macOS: a top bar that starts at the window's left edge (reader, stats — not the
+   library, whose sidebar sits under the traffic lights) leaves room for them. */
+.mac:not(.fullscreen) .app > .main:first-child > .topbar {
+  padding-left: 84px;
+}
 .topbar.bordered {
   border-bottom-color: var(--app-line);
   background: var(--app-material);
@@ -2340,4 +2345,64 @@ svg.ink-layer {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+/* ============================================== engine download ===== */
+
+/* A model download is a real wait (1–5GB), so it gets a real surface: one card inside
+   the read-aloud settings with the button, the bar, and the installer's last line. */
+.engine-install {
+  margin: 4px 0 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--app-hover);
+  box-shadow: inset 0 0 0 1px var(--app-line);
+}
+.engine-install-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  margin-bottom: 7px;
+}
+.engine-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-fg) 12%, transparent);
+  overflow: hidden;
+}
+.engine-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 320ms var(--ease-out);
+}
+/* No percentage in the output (pip): keep the bar alive without faking a number. */
+.engine-bar.indeterminate .engine-bar-fill {
+  width: 38% !important;
+  animation: engine-slide 1.5s var(--ease) infinite;
+}
+@keyframes engine-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(265%); }
+}
+.engine-install-line {
+  margin: 7px 0 0;
+  font-size: 12px;
+  color: var(--app-fg-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+.engine-install-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .engine-bar.indeterminate .engine-bar-fill { animation: none; }
 }

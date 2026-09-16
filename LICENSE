@@ -1,0 +1,30 @@
+Aloud Reader · 逐读
+Copyright © 2026 qq1968176707-dev. All rights reserved. 保留所有权利。
+
+（把上面的署名换成你的真实姓名或公司名后，这份声明就是你主张著作权的依据。）
+
+中文
+----
+本软件及其源代码、界面设计、图标与文档的著作权归作者所有。作者未授予任何人以下权利：
+
+1. 复制、分发、出租、出借本软件或其任何部分；
+2. 修改、改编、翻译本软件，或基于本软件制作衍生作品；
+3. 反编译、反汇编、逆向工程本软件，或绕过其完整性校验；
+4. 移除、遮盖或替换本软件中的署名、版权声明与图标；
+5. 将本软件或其任何部分用于商业用途，或以自己的名义发布。
+
+仅在作者以书面（含邮件、聊天记录等可留存形式）明确授权的范围内，被授权人可以安装
+和使用本软件。授权默认是个人、非独占、不可转让的。
+
+本软件按「现状」提供，不含任何明示或默示的担保。作者不对使用本软件造成的任何损失
+承担责任。
+
+本软件包含的第三方组件（Electron、React、Kokoro、VoxCPM 等）各自遵循其原有的开源
+许可证，本声明不改变那些许可证的条款；本声明约束的是本软件自身的代码与设计。
+
+English
+-------
+All rights reserved. No permission is granted to copy, distribute, modify, reverse
+engineer, or create derivative works of this software, in whole or in part, except as
+explicitly granted in writing by the copyright holder. Third-party components remain
+under their own open-source licenses.

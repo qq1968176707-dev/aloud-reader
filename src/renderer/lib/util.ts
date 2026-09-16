@@ -4,6 +4,12 @@ export const cx = (...parts: (string | false | null | undefined)[]): string =>
 export const uid = (): string =>
   (globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
 
+export const IS_MAC = window.aloud?.platform === 'darwin';
+
+/** Shortcut label for tooltips: `kbd('F')` -> "⌘F" on macOS, "Ctrl+F" elsewhere. */
+export const kbd = (key: string, shift = false): string =>
+  IS_MAC ? `${shift ? '⇧' : ''}⌘${key}` : `Ctrl+${shift ? 'Shift+' : ''}${key}`;
+
 export const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 
 export function debounce<T extends (...args: never[]) => void>(

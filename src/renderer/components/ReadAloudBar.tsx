@@ -8,9 +8,13 @@ import type {
   TtsVoice,
 } from '@shared/types';
 import type { RaStatus } from '../tts/controller';
-import { clamp } from '../lib/util';
+import { IS_MAC, clamp, cx, kbd } from '../lib/util';
+import { HAS_CLONE } from '../edition';
+import type { InstallProgress } from '../../main/tts/installer';
 import { Icon, Segmented, Slider, Switch, useDismiss } from './ui';
 import VoiceRecorder from './VoiceRecorder';
+
+const SAMPLE_WAV = IS_MAC ? '/Users/me/voices/角色.wav' : 'D:\\voices\\角色.wav';
 
 interface Props {
   status: RaStatus;
@@ -101,10 +105,10 @@ export default function ReadAloudBar({
       <button className="play" onClick={onToggle} title="播放 / 暂停 (Space)">
         <Icon name={status === 'playing' ? 'pause' : 'play'} size={19} />
       </button>
-      <button className="btn icon" onClick={onPrev} title="上一行 (Ctrl+↑)">
+      <button className="btn icon" onClick={onPrev} title={`上一行 (${kbd('↑')})`}>
         <Icon name="prevLine" size={17} />
       </button>
-      <button className="btn icon" onClick={onNext} title="下一行 (Ctrl+↓)">
+      <button className="btn icon" onClick={onNext} title={`下一行 (${kbd('↓')})`}>
         <Icon name="nextLine" size={17} />
       </button>
 
@@ -231,7 +235,9 @@ export default function ReadAloudBar({
 
           <p className="ra-hint">
             {settings.engine === 'system'
-              ? '系统语音完全离线，用的是 Windows SAPI5 语音库；音色机械，但零配置、断网可用。'
+              ? IS_MAC
+                ? '系统语音完全离线，用的是 macOS 自带语音（婷婷 / 美嘉等，可在「系统设置 › 辅助功能 › 朗读内容」里下载更多）；零配置、断网可用。'
+                : '系统语音完全离线，用的是 Windows SAPI5 语音库；音色机械，但零配置、断网可用。'
               : settings.engine === 'local'
                 ? '接你本机跑的模型服务（GPT-SoVITS / CosyVoice / 任何 OpenAI 兼容接口），音色和情感都由那边决定。'
                 : '⚠️ 微软已关闭这个免费接口，实测握手返回 403，基本不能用了。建议改用「本地模型」。'}
@@ -247,9 +253,100 @@ export default function ReadAloudBar({
   );
 }
 
+/* ------------------------------------------------ engine download */
+
+/**
+ * Download button + progress for a model runtime.
+ *
+ * The engines are hundreds of megabytes (cloning: several GB), so the download is a
+ * first-class thing on screen: one button, a real bar where the output carries a real
+ * percentage, the current phase in words, and the last line of the installer for when
+ * something goes wrong. No terminal window, nothing to babysit.
+ */
+function EngineInstall({
+  name,
+  label,
+  size,
+  installed,
+  onDone,
+}: {
+  name: 'kokoro' | 'voxcpm';
+  label: string;
+  size: string;
+  installed: boolean;
+  onDone: () => void;
+}): JSX.Element | null {
+  const [progress, setProgress] = useState<InstallProgress | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void window.aloud.tts.installState(name).then(setProgress);
+    return window.aloud.onInstallProgress((p) => {
+      if (p.name !== name) return;
+      setProgress(p);
+      if (!p.running && p.ok) onDone();
+    });
+  }, [name, onDone]);
+
+  const running = !!progress?.running;
+  if (installed && !running) return null;
+
+  return (
+    <div className="engine-install">
+      {running ? (
+        <>
+          <div className="engine-install-head">
+            <span>
+              正在下载{label}
+              {progress?.phase ? ` · ${progress.phase}` : ''}
+            </span>
+            <span>{progress?.percent != null ? `${progress.percent}%` : '…'}</span>
+          </div>
+          <div className={cx('engine-bar', progress?.percent == null && 'indeterminate')}>
+            <div className="engine-bar-fill" style={{ width: `${progress?.percent ?? 100}%` }} />
+          </div>
+          <p className="engine-install-line" title={progress?.line}>
+            {progress?.line || '…'}
+          </p>
+          <div className="engine-install-actions">
+            <button className="btn ghost-danger" onClick={() => void window.aloud.tts.installCancel(name)}>
+              取消下载
+            </button>
+            <span className="ra-hint">可以关掉这个面板继续看书，下载在后台继续。</span>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="engine-install-actions">
+            <button
+              className="btn primary"
+              onClick={() => {
+                setError(null);
+                void window.aloud.tts.install(name).then(setProgress).catch((e) => setError(String(e?.message ?? e)));
+              }}
+            >
+              <Icon name="download" size={15} /> 下载{label}（{size}）
+            </button>
+            {progress && !progress.running && progress.ok === false ? (
+              <button className="btn" onClick={() => void window.aloud.tts.install(name).then(setProgress)}>
+                重试
+              </button>
+            ) : null}
+          </div>
+          <p className="ra-hint" style={{ margin: '6px 0 0' }}>
+            {error ??
+              progress?.message ??
+              `需要联网，只需一次；下载中途断了可以重来，已经下好的部分不会重复下载。`}
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
 /* --------------------------------------------------- local model config */
 
-const PRESETS: { value: LocalTtsPreset; label: string; hint: string; baseUrl: string }[] = [
+const ALL_PRESETS: { value: LocalTtsPreset; label: string; hint: string; baseUrl: string }[] = [
   { value: 'kokoro', label: '内置神经语音（推荐）', hint: 'Kokoro-82M 中文模型，随应用管理、自动启动，完全离线', baseUrl: 'http://127.0.0.1:8973' },
   { value: 'voxcpm', label: '我的声音（克隆）', hint: 'VoxCPM 零样本克隆：录一段自己的声音，整本书都用它来读', baseUrl: 'http://127.0.0.1:8974' },
   { value: 'gpt-sovits', label: 'GPT-SoVITS', hint: '角色音色克隆最强，二次元音色包最多（api_v2.py，默认 9880）', baseUrl: 'http://127.0.0.1:9880' },
@@ -257,6 +354,9 @@ const PRESETS: { value: LocalTtsPreset; label: string; hint: string; baseUrl: st
   { value: 'openai', label: 'OpenAI 兼容', hint: '任何提供 /v1/audio/speech 的服务：IndexTTS-vLLM、Kokoro-FastAPI、openedai-speech…', baseUrl: 'http://127.0.0.1:8000' },
   { value: 'custom', label: '自定义', hint: '自己填地址和 JSON 模板，占位符：{{text}} {{voice}} {{speed}} {{instruct}}', baseUrl: 'http://127.0.0.1:8080' },
 ];
+
+/** The lite edition ships without the cloning engine, so it never offers the preset. */
+const PRESETS = ALL_PRESETS.filter((p) => HAS_CLONE || p.value !== 'voxcpm');
 
 function LocalSettings({
   config,
@@ -297,6 +397,13 @@ function LocalSettings({
       setAuditioning(false);
     }
   };
+
+  // Settings copied over from the full edition can still name the cloning engine; the
+  // lite build has no such engine, so fall back to the built-in voice instead of showing
+  // a dead panel.
+  useEffect(() => {
+    if (!HAS_CLONE && config.preset === 'voxcpm') patch({ preset: 'kokoro', baseUrl: 'http://127.0.0.1:8973' });
+  }, [config.preset, patch]);
 
   useEffect(() => {
     if (config.preset !== 'kokoro' && config.preset !== 'voxcpm') return;
@@ -403,17 +510,19 @@ function LocalSettings({
               想要偏少女/可爱的音色，试 zf_074、zf_038、zf_073（音高最高）；想沉稳一些试 zf_079、zf_046。
             </p>
           </div>
-          {kokoro && !kokoro.installed ? (
-            <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-              <button className="btn primary" onClick={() => void window.aloud.tts.kokoroInstall()}>
-                一键安装（约 1GB，需联网）
-              </button>
-            </div>
+          {kokoro ? (
+            <EngineInstall
+              name="kokoro"
+              label="内置语音"
+              size="约 1GB"
+              installed={kokoro.installed}
+              onDone={() => void window.aloud.tts.kokoroStatus().then(setKokoro)}
+            />
           ) : null}
         </>
       ) : null}
 
-      {config.preset === 'voxcpm' ? (
+      {config.preset === 'voxcpm' && HAS_CLONE ? (
         <>
           <div className="field">
             <label>
@@ -462,12 +571,17 @@ function LocalSettings({
                 删除这个
               </button>
             ) : null}
-            {voxcpm && !voxcpm.installed ? (
-              <button className="btn" onClick={() => void window.aloud.tts.voxcpmInstall()}>
-                安装克隆引擎（约 5GB）
-              </button>
-            ) : null}
           </div>
+
+          {voxcpm ? (
+            <EngineInstall
+              name="voxcpm"
+              label="声音克隆引擎"
+              size="约 5GB"
+              installed={voxcpm.installed}
+              onDone={() => void window.aloud.tts.voxcpmStatus().then(setVoxcpm)}
+            />
+          ) : null}
 
           {recording ? (
             <VoiceRecorder
@@ -483,7 +597,7 @@ function LocalSettings({
 
       {config.preset === 'gpt-sovits' ? (
         <>
-          {field('参考音频路径', 'voice', 'D:\\voices\\角色.wav')}
+          {field('参考音频路径', 'voice', SAMPLE_WAV)}
           {field('参考音频的文字', 'refText', '参考音频里说的那句话')}
         </>
       ) : null}
@@ -506,7 +620,7 @@ function LocalSettings({
           </div>
           {config.cosyMode === 'sft'
             ? field('内置音色', 'voice', '中文女 / 中文男 / 粤语女 …')
-            : field('参考音频路径', 'refAudio', 'D:\\voices\\角色.wav')}
+            : field('参考音频路径', 'refAudio', SAMPLE_WAV)}
           {config.cosyMode === 'instruct2' ? field('情感指令', 'instruct', '用兴奋的语气朗读') : null}
           {config.cosyMode === 'zero_shot' ? field('参考音频的文字', 'refText', '') : null}
         </>

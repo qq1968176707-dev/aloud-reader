@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Pre-download the Kokoro zh model + voices, and write voices.json.
 
-Run by install.bat inside the venv. Uses snapshot_download (resumable, retried) instead
+Run by install.bat / install.sh inside the venv. Uses snapshot_download (resumable, retried) instead
 of hammering one HEAD request per voice — hf-mirror rate-limits that into failures.
 """
 import json

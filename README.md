@@ -1,14 +1,25 @@
 # Aloud Reader · 逐读
 
-一个 Windows 桌面电子书阅读器：Apple Books 的功能集与视觉语言，按大屏幕和鼠标 + 键盘重新设计；加上一个 Apple Books 没有的东西——**逐行导读**：一次朗读一行，屏幕上同步点亮那一行（词边界可用时点亮到词），页面跟着声音走，读到跨页边界的那个字就翻页。声音可以是内置神经语音（103 个中文音色，离线），也可以是**你自己的声音**（VoxCPM 零样本克隆）。
+一个 Windows / macOS 桌面电子书阅读器：Apple Books 的功能集与视觉语言，按大屏幕和鼠标 + 键盘重新设计；加上一个 Apple Books 没有的东西——**逐行导读**：一次朗读一行，屏幕上同步点亮那一行（词边界可用时点亮到词），页面跟着声音走，读到跨页边界的那个字就翻页。声音可以是内置神经语音（103 个中文音色，离线），也可以是**你自己的声音**（VoxCPM 零样本克隆）。
 
 全本地。没有账号，没有云，没有遥测。所有数据都是磁盘上可读可改的 JSON。
 
 ```bash
 npm install
-npm run dev          # 开发
-npm run dist:win     # 打包：release/ 下出安装版 + 免安装版
+npm run dev              # 开发（两个平台一样）
+
+npm run dist:mac         # macOS 完整版 → release/AloudReader-<版本>-arm64-pro.dmg（+ .zip）
+npm run dist:mac:lite    # macOS 轻量版（不含声音克隆）
+npm run dist:win         # Windows 完整版 → 安装版 exe + 免安装 exe
+npm run dist:win:lite    # Windows 轻量版
 ```
+
+**两个版本。** `pro`（完整版）带声音克隆；`lite`（轻量版）去掉克隆引擎——预设列表里没有它，
+安装入口没有它，主进程的相关 IPC 直接拒绝。版本在编译期定死（`ALOUD_EDITION`，见
+`src/main/edition.ts`），不是运行时开关。两个平台各出两个版本，共四个安装包。
+
+**模型不进安装包。** 内置语音（约 1GB）和克隆引擎（约 5GB）都是在应用里点「下载」按钮之后
+才拉的：应用内进度条 + 阶段提示 + 可取消，断了重来不会重复下载已有的部分。
 
 ---
 
@@ -41,6 +52,22 @@ npm run dist:win     # 打包：release/ 下出安装版 + 免安装版
 
 **为什么是 Electron 而不是 Tauri。** Tauri 包体小 20 倍，正常情况下选它。但本项目的差异化功能整个压在 Web Speech API 上：Tauri 在 Windows 用 WebView2，而 WebView2 的 `speechSynthesis` 不可靠（`getVoices()` 常返回空），拿不到语音更拿不到 `boundary` 事件——逐词高亮直接没了。Electron 的 Chromium 直连 SAPI5 且会为本地语音发 `boundary` 事件，这是离线卡拉 OK 高亮的前提。代价明确接受：安装包 ~90MB，常驻内存 ~200MB。
 
+### 2.1.1 两个平台的差异（这次移植改了什么）
+
+| 事项 | Windows | macOS |
+| --- | --- | --- |
+| 数据目录 | `%APPDATA%\Aloud Reader\` | `~/Library/Application Support/Aloud Reader/` |
+| 模型 runtime | 放脚本旁边 `tts-server/runtime*`（用户目录被 EFS 加密 + MSIX 虚拟化） | 放数据目录 `…/Aloud Reader/tts-server/runtime*`（`.app` 内部是只读且签过名的，不能往里写） |
+| venv 解释器 | `runtime\venv\Scripts\python.exe` | `runtime/venv/bin/python` |
+| 安装脚本 | `install.bat` / `install-voxcpm.bat` | `install.sh` / `install-voxcpm.sh`（优先用 `uv` 拉 Python 3.11，其次 Homebrew 的 3.10–3.12；系统自带的 3.9 太老） |
+| 杀模型进程树 | `taskkill /T /F` | 进程组 `kill(-pid)`（服务用 `detached` 起，所以自己是组长） |
+| 标题栏 | `titleBarOverlay`（自绘按钮） | `titleBarStyle: hidden` + 红绿灯定位，顶栏左侧留 84px（全屏时自动收回） |
+| 菜单 | 文件/视图/朗读/帮助 | 多一个应用菜单和「编辑」菜单——**没有编辑菜单，⌘C/⌘V 在 mac 上根本不工作** |
+| 打开文件 | argv / 单实例 | `open-file` 事件（Dock 拖入、访达「打开方式」），就绪前先排队 |
+| 快捷键提示 | `Ctrl+F` | `⌘F`（`kbd()` 统一产出，见 `src/renderer/lib/util.ts`） |
+| 系统语音 | SAPI5（Huihui 等） | macOS 自带语音（婷婷/美嘉…，系统设置里可下载更多），同样有词边界事件 |
+| 签名 | 无 | ad-hoc 签名（Apple Silicon 必须签，`identity: null` 时 electron-builder 仍会 ad-hoc 签） |
+
 ### 2.2 目录结构
 
 ```
@@ -62,8 +89,11 @@ npm run dist:win     # 打包：release/ 下出安装版 + 免安装版
 │  │  │  ├─ html.ts           白名单重建正文 + 提取叶子块（从文档根渲染，防 KF8 丢章）
 │  │  │  ├─ epub.ts / pdf.ts / zipbook.ts / archive.ts
 │  │  │  └─ mobi.ts          ★ PalmDOC+HUFF/CDIC 解压、pagebreak+filepos 双源分章
+│  │  ├─ edition.ts          ★ pro / lite 版本开关（编译期常量）
 │  │  └─ tts/
 │  │     ├─ kokoro.ts / voxcpm.ts   应用托管的模型服务（按需拉起、退出杀进程树）
+│  │     ├─ runtime.ts             ★ runtime/venv 路径与安装脚本的平台差异都收在这里
+│  │     ├─ installer.ts           ★ 应用内下载：跑安装脚本 + 解析进度推给界面
 │  │     ├─ local.ts                预设协议（kokoro/voxcpm/openai/gpt-sovits/cosyvoice/自定义）
 │  │     └─ voices.ts               克隆音频落 userData（重装不丢）
 │  ├─ renderer/
@@ -106,7 +136,7 @@ npm run dist:win     # 打包：release/ 下出安装版 + 免安装版
 
 | 引擎 | 音质 | 离线 | 词边界 | 说明 |
 | --- | --- | --- | --- | --- |
-| 系统（SAPI5） | 机械 | ✓ | ✓ 真实事件 | 零配置兜底；本机通常只有 Huihui/Kangkang/Yaoyao |
+| 系统语音 | 机械 | ✓ | ✓ 真实事件 | 零配置兜底。Windows = SAPI5（通常只有 Huihui/Kangkang/Yaoyao）；macOS = 系统语音（婷婷/美嘉等，可在「系统设置 › 辅助功能 › 朗读内容」里下更好的） |
 | **内置 Kokoro-82M**（默认） | 自然 | ✓ | 按时长估算 | 103 个中文音色，CPU ~7× 实时，应用托管自启自停 |
 | 本地模型 | 最好 | 视模型 | 按时长估算 | 预设 VoxCPM（**声音克隆**）/ GPT-SoVITS / CosyVoice / OpenAI 兼容 / 自定义模板 |
 
@@ -149,8 +179,13 @@ Edge 免费接口已死（合成 WebSocket 一律 403，2026-08 实测），界�
 npm run dev            # 开发（Vite + esbuild watch）
 npm run typecheck
 npm run build          # dist/ + dist-electron/
-npm run dist:win       # release/：AloudReader-*-setup.exe + portable.exe + win-unpacked/
+npm run icon           # 从 build/icon.html 重新生成 icon.png / icon.icns / icon.ico
+npm run dist:mac       # release/：AloudReader-*-arm64-pro.dmg + .zip + mac-arm64/
+npm run dist:win       # release/：AloudReader-*-pro-setup.exe + portable.exe + win-unpacked/
 ```
+
+图标的源是 `build/icon.html`（一段 SVG），`npm run icon` 用 Electron 把它渲染成 1024² PNG，
+再由 `sips`/`iconutil` 打成 icns 和 ico——所以改图标只要改那段 SVG。
 
 打包缓存已指向 `.eb-cache/`（EFS 加密的用户目录会让 electron-builder 的符号链接缓存炸掉）。
 
@@ -164,7 +199,18 @@ npm run smoke:ui                              # 启动真窗口跑 18+ 项回归
 
 UI 自检覆盖：分页几何（含 125% 缩放分数视口）、卷页不变量（纯镜像/无整页透明）、拖拽翻页、跨章前进/回退落点、阅读位置往返、朗读行序与词高亮、词边界跨页翻页、滚轮手势（惯性串=1页）、面板共存与拖宽、确认对话框链路、页边距无残留。环境变量：`ALOUD_SMOKE_BOOK=书名` 选书，`ALOUD_SMOKE_SHOTS=1` 附四张界面截图，`ALOUD_SMOKE_LOCAL_TTS=<url>` 连本地模型全链路。
 
-⚠️ 跑 UI 自检前先杀掉在跑的实例（单实例锁会让新进程静默退出）；`scripts/smoke.mjs` 已自动处理。
+模型下载链路也有探针，但默认跳过（不然一跑自检就拉 5GB）：准备一个只会打印假进度的
+`install-voxcpm.sh`，然后
+
+```bash
+ALOUD_SMOKE_TTS_FAKE=1 ALOUD_TTS_DIR=/path/to/stub npm run smoke:ui
+```
+
+⚠️ 跑 UI 自检前先杀掉在跑的实例（单实例锁会让新进程静默退出）；`scripts/smoke.mjs` 已自动处理
+（Windows 用 `taskkill`，mac/Linux 用 `pkill`，只杀本项目的 Electron）。
+
+⚠️ 自检跑在真实数据目录上：书架默认停在「现在阅读」，而用程序导航打开的书还在「想读」里，
+所以相关探针会先切到「全部图书」再数书卡。
 
 ### 快捷键
 
@@ -184,7 +230,9 @@ UI 自检覆盖：分页几何（含 125% 缩放分数视口）、卷页不变�
 - 自定义 `aloud://` 协议只服务数据目录内文件，路径穿越在协议层拦截
 - CSP 禁外联；书里的远程图片不加载
 
-## 7. 数据目录（`%APPDATA%\Aloud Reader\`）
+## 7. 数据目录
+
+Windows：`%APPDATA%\Aloud Reader\`　macOS：`~/Library/Application Support/Aloud Reader/`
 
 ```
 books/<id>/book.json|plain.json|chapters/|images/   导入产物（人类可读）
@@ -193,6 +241,9 @@ annotations/<id>.json                               标注
 voices/*.wav                                        克隆参考音频
 library.json / settings.json / stats.json
 ```
+
+macOS 上模型 runtime 也在这里（`tts-server/runtime`、`tts-server/runtime-voxcpm`），Windows 上
+则在 `tts-server/` 脚本旁边——原因见 2.1.1。
 
 设置迁移用 `getSettings()` 里的一次性 `migrations` 键，不直接改用户文件（沙箱进程写 %APPDATA% 可能进 MSIX 虚拟化副本）。
 
@@ -207,3 +258,15 @@ library.json / settings.json / stats.json
 3. **朗读跨引擎无缝切换**（播放中换引擎从当前词续播）
 4. **WebGL 曲面卷页**（斜折痕的正确实现）
 5. **多窗口/分屏对照阅读**
+
+## 9. 版权
+
+见 `LICENSE`：**保留所有权利**。源码可见不等于可以拿去用——未经作者书面授权，不得复制、
+分发、修改、反向工程或以自己的名义发布。署名写在三个地方，改名字时三处一起改：
+
+1. `LICENSE`
+2. `package.json` 的 `author`
+3. `src/main/main.ts` 的 `AUTHOR`（「关于」窗口显示的就是它）+ `electron-builder.yml` 的 `copyright`
+
+Electron 应用的 JS 一定可以被解包，这一层只是署名与授权边界，不是技术防护。真要再抬门槛，
+下一步是离线激活码（Ed25519 签名 + 机器指纹）或代码混淆/字节码，取舍见对话记录。

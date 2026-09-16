@@ -12,10 +12,11 @@
 
 :root {
   /* Segoe UI Variable first: on Windows 11 its optical sizing gives Latin text
-     and numerals the SF-like crispness; Chinese falls through to PingFang/YaHei. */
-  --font-ui: 'Segoe UI Variable Text', 'PingFang SC', 'Microsoft YaHei UI', 'Segoe UI',
-    system-ui, -apple-system, sans-serif;
-  --font-display: 'Segoe UI Variable Display', 'PingFang SC', 'Microsoft YaHei UI',
+     and numerals the SF-like crispness; on macOS -apple-system is SF itself.
+     Chinese falls through to PingFang/YaHei. */
+  --font-ui: 'Segoe UI Variable Text', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei UI', 'Segoe UI',
+    system-ui, sans-serif;
+  --font-display: 'Segoe UI Variable Display', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei UI',
     'Segoe UI', system-ui, sans-serif;
 
   --radius-sm: 6px;

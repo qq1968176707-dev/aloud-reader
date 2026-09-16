@@ -1,6 +1,6 @@
 appId: com.aloudreader.app
 productName: Aloud Reader
-copyright: Copyright © 2026
+copyright: Copyright © 2026 qq1968176707-dev. All rights reserved.
 
 directories:
   output: release
@@ -21,7 +21,7 @@ asar: true
 extraResources:
   - from: tts-server
     to: tts-server
-    filter: ['*.py', '*.bat']
+    filter: ['*.py', '*.bat', '*.sh']
 
 win:
   target:
@@ -33,8 +33,35 @@ win:
       arch: [x64]
   icon: build/icon.ico
 
+mac:
+  # dmg = 拖进「应用程序」安装；zip = 解压即用
+  target:
+    - target: dmg
+      arch: [arm64]
+    - target: zip
+      arch: [arm64]
+  # ALOUD_EDITION 由 scripts/dist.mjs 传入：pro=含声音克隆，lite=不含
+  artifactName: AloudReader-${version}-${arch}-${env.ALOUD_EDITION}.${ext}
+  category: public.app-category.books
+  icon: build/icon.icns
+  # 无开发者证书：本机 ad-hoc 签名即可运行（Apple Silicon 必须至少 ad-hoc 签名）
+  identity: null
+  hardenedRuntime: false
+  extendInfo:
+    NSMicrophoneUsageDescription: 录制你的声音（声音克隆参考音频、阅读录音）需要使用麦克风。
+  fileAssociations:
+    - ext: [epub]
+      name: EPUB 电子书
+      role: Viewer
+    - ext: [mobi, azw, azw3, prc]
+      name: Kindle 电子书
+      role: Viewer
+    - ext: [aloudbook]
+      name: Aloud 图书包
+      role: Viewer
+
 nsis:
-  artifactName: AloudReader-${version}-setup.exe
+  artifactName: AloudReader-${version}-${env.ALOUD_EDITION}-setup.exe
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
@@ -45,5 +72,5 @@ nsis:
   language: '2052' # 简体中文安装界面
 
 portable:
-  artifactName: AloudReader-${version}-portable.exe
+  artifactName: AloudReader-${version}-${env.ALOUD_EDITION}-portable.exe
   requestExecutionLevel: user

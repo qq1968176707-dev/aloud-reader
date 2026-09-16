@@ -17,7 +17,11 @@ export const mainOptions = (dev) => ({
   external: externals,
   sourcemap: dev ? 'inline' : false,
   minify: !dev,
-  define: { 'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production') },
+  define: {
+    'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production'),
+    // Edition is compile-time so the lite build does not even contain the clone paths.
+    'process.env.ALOUD_EDITION': JSON.stringify(process.env.ALOUD_EDITION === 'lite' ? 'lite' : 'pro'),
+  },
   logLevel: 'info',
 });
 

@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
+import type { InstallProgress } from './tts/installer';
 import type {
   AnnotationFile,
   BookManifest,
@@ -74,6 +75,10 @@ const api = {
       invoke<{ installed: boolean; running: boolean; ready: boolean; voices: string[] }>('tts:kokoroStatus'),
     kokoroStart: () => invoke<{ ok: boolean; message: string }>('tts:kokoroStart'),
     kokoroInstall: () => invoke<void>('tts:kokoroInstall'),
+    /** In-app install with progress (see onInstallProgress). */
+    install: (name: 'kokoro' | 'voxcpm') => invoke<InstallProgress>('tts:install', name),
+    installState: (name: 'kokoro' | 'voxcpm') => invoke<InstallProgress>('tts:installState', name),
+    installCancel: (name: 'kokoro' | 'voxcpm') => invoke<void>('tts:installCancel', name),
     voxcpmStatus: () =>
       invoke<{ installed: boolean; running: boolean; ready: boolean; device: string }>('tts:voxcpmStatus'),
     voxcpmStart: () => invoke<{ ok: boolean; message: string }>('tts:voxcpmStart'),
@@ -108,6 +113,21 @@ const api = {
     ipcRenderer.on('menu', handler);
     return (): void => {
       ipcRenderer.off('menu', handler);
+    };
+  },
+  onInstallProgress: (cb: (p: InstallProgress) => void) => {
+    const handler = (_e: unknown, p: InstallProgress) => cb(p);
+    ipcRenderer.on('tts:install-progress', handler);
+    return (): void => {
+      ipcRenderer.off('tts:install-progress', handler);
+    };
+  },
+  /** macOS full screen toggles (the top bar reclaims the traffic-light gutter). */
+  onFullscreen: (cb: (on: boolean) => void) => {
+    const handler = (_e: unknown, on: boolean) => cb(on);
+    ipcRenderer.on('window:fullscreen', handler);
+    return (): void => {
+      ipcRenderer.off('window:fullscreen', handler);
     };
   },
   onImportProgress: (cb: (p: { file: string; done: number; total: number }) => void) => {

@@ -1,0 +1,65 @@
+<!doctype html>
+<meta charset="utf-8" />
+<!--
+  Source of the app icon (see scripts/make-icon.mjs). macOS grammar: a squircle of warm
+  paper, one open book, one line lit by the accent — the product in a glyph: 逐行导读.
+-->
+<style>
+  html, body { margin: 0; background: transparent; }
+  .icon {
+    width: 1024px; height: 1024px;
+    display: flex; align-items: center; justify-content: center;
+  }
+</style>
+<div class="icon">
+  <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#fdfbf7" />
+        <stop offset="1" stop-color="#efe7da" />
+      </linearGradient>
+      <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#f0a029" />
+        <stop offset="1" stop-color="#d97e00" />
+      </linearGradient>
+      <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#5a4327" flood-opacity="0.18" />
+      </filter>
+    </defs>
+
+    <!-- Apple's rounded square: content inset ~100, corner radius ~ 0.225 of the side -->
+    <rect x="100" y="100" width="824" height="824" rx="185" ry="185" fill="url(#paper)" />
+    <rect x="100" y="100" width="824" height="824" rx="185" ry="185"
+      fill="none" stroke="#000" stroke-opacity="0.07" stroke-width="3" />
+
+    <g transform="translate(512 512) scale(0.86) translate(-542 -512)">
+
+    <g filter="url(#soft)">
+      <!-- open book: two leaves meeting at the spine -->
+      <path fill="#ffffff" stroke="#c8bba6" stroke-width="5"
+        d="M512 320 C 448 268 356 258 268 276 L268 700 C 356 682 448 692 512 744 Z" />
+      <path fill="#ffffff" stroke="#c8bba6" stroke-width="5"
+        d="M512 320 C 576 268 668 258 756 276 L756 700 C 668 682 576 692 512 744 Z" />
+      <path stroke="#c8bba6" stroke-width="7" stroke-linecap="round" d="M512 322 L512 742" />
+    </g>
+
+    <!-- text lines; the second one is lit, the way the reader lights the line it speaks -->
+    <g stroke-linecap="round" stroke="#cfc4b2" stroke-width="20">
+      <path d="M336 372 L462 358" />
+      <path d="M336 500 L462 500" />
+      <path d="M336 560 L430 566" />
+      <path d="M562 372 L688 358" />
+      <path d="M562 494 L688 494" />
+      <path d="M562 556 L656 562" />
+    </g>
+    <path stroke="url(#accent)" stroke-width="26" stroke-linecap="round" d="M336 434 L470 430" />
+    <path stroke="url(#accent)" stroke-width="26" stroke-linecap="round" stroke-opacity="0.35" d="M562 430 L688 430" />
+
+    <!-- voice: arcs leaving the lit line -->
+    <g fill="none" stroke="url(#accent)" stroke-linecap="round">
+      <path stroke-width="22" d="M790 378 C 834 428 834 496 790 546" />
+      <path stroke-width="22" stroke-opacity="0.55" d="M856 338 C 918 416 918 504 856 582" />
+    </g>
+    </g>
+  </svg>
+</div>

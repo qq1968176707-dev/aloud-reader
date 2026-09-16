@@ -24,6 +24,7 @@ const PATHS: Record<string, string> = {
   chart: 'M4 20V9m5 11V4m5 16v-7m5 7V7',
   trash: 'M5 7h14M9 7V4h6v3m-8 0 1 13h8l1-13',
   export: 'M12 16V4m0 0L8 8m4-4 4 4M4 17v3h16v-3',
+  download: 'M12 4v12m0 0 4-4m-4 4-4-4M4 17v3h16v-3',
   grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
   list: 'M4 6h16M4 12h16M4 18h16',
   zoom: 'M11 4a7 7 0 1 0 4.2 12.6L20 21.4 21.4 20l-4.8-4.8A7 7 0 0 0 11 4M8.5 11h5M11 8.5v5',

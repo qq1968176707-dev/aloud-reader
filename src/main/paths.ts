@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 /**
- * On-disk layout (Windows: %APPDATA%\Aloud Reader\)
+ * On-disk layout (Windows: %APPDATA%\Aloud Reader\ · macOS: ~/Library/Application Support/Aloud Reader/)
  *
  *   settings.json                 app settings
  *   library.json                  shelves, collections, manual order
