@@ -71,8 +71,18 @@ export function relativeDate(iso?: string): string {
   return new Date(iso).toLocaleDateString('zh-CN');
 }
 
-export const bookAssetUrl = (bookId: string, rel?: string): string | undefined =>
-  rel ? `aloud://book/${bookId}/${rel.split('/').map(encodeURIComponent).join('/')}` : undefined;
+/**
+ * URL for a file inside a book package.
+ *
+ * Desktop serves these over the `aloud://book/` protocol. A browser cannot register a
+ * custom scheme, so the web build sets `__aloudAssetBase` to a same-origin path that
+ * its service worker answers out of OPFS; everything else about the URL is identical.
+ */
+export const bookAssetUrl = (bookId: string, rel?: string): string | undefined => {
+  if (!rel) return undefined;
+  const base = (window as { __aloudAssetBase?: string }).__aloudAssetBase ?? 'aloud://book/';
+  return `${base}${bookId}/${rel.split('/').map(encodeURIComponent).join('/')}`;
+};
 
 /** Deterministic pastel pair for generated covers. */
 export function coverGradient(seed: string): [string, string] {

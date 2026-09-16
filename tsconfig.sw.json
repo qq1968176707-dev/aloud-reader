@@ -1,0 +1,17 @@
+{
+  // The service worker runs in a worker global, not a window: `self` is a
+  // ServiceWorkerGlobalScope and there is no `document`. It therefore needs the
+  // WebWorker lib instead of DOM, which is why it cannot share the main tsconfig.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "WebWorker"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "types": []
+  },
+  "include": ["src/web/sw.ts"]
+}

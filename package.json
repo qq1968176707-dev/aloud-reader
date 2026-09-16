@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "node scripts/build.mjs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.sw.json",
     "sample": "node scripts/make-sample-book.mjs",
     "icon": "node scripts/make-icon.mjs",
     "smoke:import": "node scripts/smoke.mjs import samples/sample-book.zip",
@@ -17,7 +17,9 @@
     "dist:win": "node scripts/dist.mjs --win",
     "dist:mac": "node scripts/dist.mjs --mac",
     "dist:win:lite": "node scripts/dist.mjs --win --lite",
-    "dist:mac:lite": "node scripts/dist.mjs --mac --lite"
+    "dist:mac:lite": "node scripts/dist.mjs --mac --lite",
+    "build:web": "node scripts/build-web.mjs",
+    "dev:web": "vite --config vite.web.config.ts"
   },
   "dependencies": {
     "adm-zip": "^0.5.16",

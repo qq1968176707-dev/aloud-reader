@@ -15,6 +15,10 @@
  * from a skeleton/fragment index; it is not parsed here. Dual files fall back to their
  * MOBI6 half, which is complete.
  */
+// Imported explicitly rather than relied on as a global: Node resolves this to its
+// built-in module, and the browser build aliases it to the `buffer` polyfill (see
+// vite.web.config.ts). Relying on the global worked only under Electron.
+import { Buffer } from 'buffer';
 import { basename, extname } from './pathlite';
 import { BOOK_SCHEMA, type BookManifest, type ChapterRef, type TocItem } from '@shared/types';
 import { collapse } from '@shared/text';

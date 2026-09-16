@@ -20,5 +20,7 @@
       "@/*": ["src/renderer/*"]
     }
   },
-  "include": ["src", "vite.config.ts"]
+  "include": ["src", "vite.config.ts", "vite.web.config.ts"],
+  // The service worker is a worker global, not a window — see tsconfig.sw.json.
+  "exclude": ["src/web/sw.ts"]
 }
