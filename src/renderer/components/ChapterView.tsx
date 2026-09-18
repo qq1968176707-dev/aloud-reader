@@ -24,7 +24,13 @@ export default function ChapterView({
 }: Props): JSX.Element {
   // Second line of defence: the importer already rebuilt this markup from a whitelist.
   const safe = useMemo(
-    () => DOMPurify.sanitize(html, { ALLOWED_URI_REGEXP: URI_REGEXP, ADD_ATTR: ['data-blk', 'data-page'] }),
+    () =>
+      DOMPurify.sanitize(html, {
+        ALLOWED_URI_REGEXP: URI_REGEXP,
+        // `data-paper` / `data-sheet` carry a created notebook's ruling; the CSS draws
+        // it from those, so stripping them would leave blank sheets.
+        ADD_ATTR: ['data-blk', 'data-page', 'data-paper', 'data-sheet'],
+      }),
     [html],
   );
 

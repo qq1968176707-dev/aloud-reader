@@ -3,21 +3,26 @@ import path from 'node:path';
 import {
   PLAIN_SCHEMA,
   type BookIndexEntry,
+  type BookManifest,
   type ImportResult,
+  type NotebookOptions,
+  type PaperStyle,
   type PlainIndex,
   type SourceType,
 } from '@shared/types';
+import { MAX_NOTEBOOK_PAGES, appendSheets, buildNotebook } from '@shared/notebook';
 import { countWords } from '@shared/text';
 import { extractBlocks } from '@shared/import/html';
 import {
   SUPPORTED_EXTENSIONS,
   looksImportableName,
+  makeBookId,
   parseBook,
   type ImportedBook,
 } from '@shared/import/index';
 import { setPdfjsLoader } from '@shared/import/pdf';
 import { P } from '../paths';
-import { getLibrary, saveLibrary, writeJson } from '../store';
+import { getLibrary, readJson, saveLibrary, writeJson } from '../store';
 
 export { SUPPORTED_EXTENSIONS };
 
@@ -123,6 +128,61 @@ function materialize(book: ImportedBook, sourceType: SourceType): BookIndexEntry
   lib.order = [entry.id, ...lib.order.filter((id) => id !== entry.id)];
   saveLibrary(lib);
   return entry;
+}
+
+/** Create an empty notebook and put it on the shelf. */
+export function createNotebook(opts: NotebookOptions): ImportResult {
+  const bookId = makeBookId(opts.title || 'notebook');
+  try {
+    const book = buildNotebook(opts, bookId);
+    const entry = materialize(book, 'notebook');
+    // A notebook is one chapter of N sheets; the shelf should count sheets, not chapters.
+    const lib = getLibrary();
+    const row = lib.books.find((b) => b.id === bookId);
+    if (row) {
+      row.chapterCount = Number(book.manifest.meta?.pages) || 1;
+      row.paper = opts.paper;
+      row.shelf = 'reading';
+      saveLibrary(lib);
+    }
+    return { ok: true, file: entry.title, bookId, title: entry.title };
+  } catch (err) {
+    fs.rmSync(P.bookDir(bookId), { recursive: true, force: true });
+    return { ok: false, file: opts.title, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/** Append blank sheets to an existing notebook, returning the new page count. */
+export function addNotebookPages(bookId: string, count: number): number {
+  const manifest = readJson<BookManifest | null>(P.manifest(bookId), null);
+  if (!manifest?.meta?.notebook) throw new Error('这本不是笔记本');
+  const paper = (manifest.meta.paper as PaperStyle) ?? 'blank';
+  const existing = Number(manifest.meta.pages) || 0;
+  const add = Math.max(1, Math.min(MAX_NOTEBOOK_PAGES - existing, Math.floor(count) || 1));
+  if (add <= 0) return existing;
+
+  const file = path.join(P.bookDir(bookId), 'chapters', 'pages.html');
+  const html = appendSheets(fs.readFileSync(file, 'utf8'), paper, existing, add);
+  fs.writeFileSync(file, html, 'utf8');
+
+  manifest.meta.pages = existing + add;
+  writeJson(P.manifest(bookId), manifest);
+
+  // plain.json must keep one entry per leaf block or every anchor past the old end
+  // would point at nothing.
+  const plain = readJson<PlainIndex | null>(P.plain(bookId), null);
+  if (plain?.chapters[0]) {
+    plain.chapters[0].blocks = extractBlocks(html);
+    writeJson(P.plain(bookId), plain);
+  }
+
+  const lib = getLibrary();
+  const entry = lib.books.find((b) => b.id === bookId);
+  if (entry) {
+    entry.chapterCount = existing + add;
+    saveLibrary(lib);
+  }
+  return existing + add;
 }
 
 export function removeBook(bookId: string): void {

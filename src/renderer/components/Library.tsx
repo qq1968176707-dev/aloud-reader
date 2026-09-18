@@ -5,6 +5,7 @@ import { bookAssetUrl, coverGradient, cx, relativeDate, uid } from '../lib/util'
 import { exportAnnotations } from '../lib/annotationsExport';
 import { ContextMenu, Icon, Segmented } from './ui';
 import { ConfirmDialog } from './Overlays';
+import NewNotebook from './NewNotebook';
 import { useDragSize } from '../lib/useDragSize';
 
 type ShelfKey = BuiltinShelf | 'all' | `collection:${string}`;
@@ -32,12 +33,14 @@ export default function Library(): JSX.Element {
   const patchSettings = useStore((s) => s.patchSettings);
   const navigate = useStore((s) => s.navigate);
   const importBooks = useStore((s) => s.importBooks);
+  const createNotebook = useStore((s) => s.createNotebook);
   const removeBook = useStore((s) => s.removeBook);
   const importing = useStore((s) => s.importing);
   const importProgress = useStore((s) => s.importProgress);
   const toast = useStore((s) => s.toast);
 
   const [shelf, setShelf] = useState<ShelfKey>('reading');
+  const [newSheet, setNewSheet] = useState(false);
   const sidebar = useDragSize({
     value: settings.sidebarWidth ?? 232,
     min: 180,
@@ -207,7 +210,11 @@ export default function Library(): JSX.Element {
 
       <main className="main">
         <header className="topbar bordered titlebar-drag">
-          <button className="btn primary" onClick={() => void importBooks()} disabled={importing}>
+          <button className="btn primary" onClick={() => setNewSheet(true)}>
+            <Icon name="notebook" size={15} />
+            新建
+          </button>
+          <button className="btn" onClick={() => void importBooks()} disabled={importing}>
             <Icon name="plus" size={15} />
             {importing
               ? importProgress
@@ -252,7 +259,7 @@ export default function Library(): JSX.Element {
             <div className="empty" style={{ minHeight: '60vh' }}>
               <Icon name="library" size={34} />
               <h2>{query ? '没有匹配的书' : '这里还没有书'}</h2>
-              <p>把 EPUB / MOBI / AZW3 / PDF 拖进窗口，或点右上角「导入图书」。书站的 zip 合集包也能直接放进来。</p>
+              <p>点「新建」开一本空笔记本，或把 EPUB / MOBI / AZW3 / PDF 拖进窗口。书站的 zip 合集包也能直接放进来。</p>
             </div>
           ) : settings.library.view === 'grid' ? (
             <>
@@ -328,11 +335,16 @@ export default function Library(): JSX.Element {
                   <Cover book={book} mini />
                   <div>
                     <div>{book.title}</div>
-                    <div className="sub">{book.authors.join('、') || '未知作者'}</div>
+                    <div className="sub">
+                      {book.sourceType === 'notebook' ? '笔记本' : book.authors.join('、') || '未知作者'}
+                    </div>
                   </div>
-                  <div className="sub">{Math.round(book.progress * 100)}% · {book.chapterCount} 节</div>
+                  <div className="sub">
+                    {Math.round(book.progress * 100)}% ·{' '}
+                    {book.chapterCount} {book.sourceType === 'notebook' ? '页' : '节'}
+                  </div>
                   <div className="sub">{relativeDate(book.lastOpenedAt) || '未打开'}</div>
-                  <div className="sub">{book.sourceType.toUpperCase()}</div>
+                  <div className="sub">{book.sourceType === 'notebook' ? '笔记本' : book.sourceType.toUpperCase()}</div>
                 </button>
               ))}
             </div>
@@ -406,6 +418,29 @@ export default function Library(): JSX.Element {
         </ContextMenu>
       ) : null}
 
+      {newSheet ? (
+
+        <NewNotebook
+
+          onCancel={() => setNewSheet(false)}
+
+          onCreate={(opts) => {
+
+            setNewSheet(false);
+
+            void createNotebook(opts).then((id) => {
+
+              if (id) navigate({ name: 'reader', bookId: id });
+
+            });
+
+          }}
+
+        />
+
+      ) : null}
+
+
       {confirm ? (
         <ConfirmDialog
           title={confirm.title}
@@ -426,6 +461,14 @@ export default function Library(): JSX.Element {
 function Cover({ book, mini }: { book: BookIndexEntry; mini?: boolean }): JSX.Element {
   const url = bookAssetUrl(book.id, book.cover);
   if (url) return <img className={mini ? 'mini' : 'cover'} src={url} alt="" draggable={false} />;
+  if (book.sourceType === 'notebook') {
+    // Show the paper you chose, so a shelf of notebooks is told apart at a glance.
+    return (
+      <div className={cx(mini ? 'mini' : 'cover', 'notebook-cover')} data-paper={book.paper ?? 'blank'}>
+        {!mini ? <div className="t">{book.title}</div> : null}
+      </div>
+    );
+  }
   const [a, b] = coverGradient(book.id);
   return (
     <div

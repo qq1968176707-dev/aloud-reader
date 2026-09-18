@@ -9,6 +9,7 @@ import {
   type EdgeSynthRequest,
   type ImportResult,
   type Library,
+  type NotebookOptions,
   type LocalTtsConfig,
   type PlainIndex,
   type ReadingState,
@@ -16,7 +17,14 @@ import {
 } from '@shared/types';
 import { P, resolveInside } from './paths';
 import * as store from './store';
-import { SUPPORTED_EXTENSIONS, looksImportable, importFile, removeBook } from './import';
+import {
+  SUPPORTED_EXTENSIONS,
+  addNotebookPages,
+  createNotebook,
+  importFile,
+  looksImportable,
+  removeBook,
+} from './import';
 import { listEdgeVoices, synthesizeEdge } from './tts/edge';
 import { synthesizeLocal, testLocal, type LocalSynthRequest } from './tts/local';
 import { ensureKokoro, kokoroStatus, scriptsDir } from './tts/kokoro';
@@ -96,6 +104,11 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     }
     return out;
   });
+
+  ipcMain.handle('books:create', (_e, opts: NotebookOptions): ImportResult => createNotebook(opts));
+  ipcMain.handle('books:add-pages', (_e, bookId: string, count: number): number =>
+    addNotebookPages(bookId, count),
+  );
 
   ipcMain.handle('books:remove', (_e, bookId: string) => removeBook(bookId));
   ipcMain.handle('books:manifest', (_e, bookId: string) => readManifest(bookId));

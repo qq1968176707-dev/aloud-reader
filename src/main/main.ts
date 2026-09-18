@@ -373,6 +373,11 @@ if (!gotLock) {
     buildMenu();
     createWindow();
 
+    if (process.env.ALOUD_SMOKE_PROBE && win) {
+      const { runProbe } = await import('./smoke');
+      await runProbe(win, process.env.ALOUD_SMOKE_PROBE);
+      return;
+    }
     if (process.env.ALOUD_SMOKE_UI && win) {
       const { runUiSmoke } = await import('./smoke');
       await runUiSmoke(win);

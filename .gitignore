@@ -27,6 +27,7 @@ tts-server/runtime-voxcpm/
 # 自检产物与设计评审截图，每次 smoke 重新生成
 smoke-result.json
 smoke-stdout*.txt
+probe-result.json
 shot-*.png
 
 # 解析基线：记着本机书库的书名与绝对路径，属于个人数据。

@@ -43,6 +43,7 @@ const PATHS: Record<string, string> = {
   shapeArrow: 'M4.5 19.5 19 5M19.5 11V4.5H13',
   shapeRect: 'M4.5 6h15v12h-15z',
   shapeEllipse: 'M12 5.5c4.7 0 8.5 2.9 8.5 6.5s-3.8 6.5-8.5 6.5S3.5 15.6 3.5 12 7.3 5.5 12 5.5z',
+  notebook: 'M6 3.5h11a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H6a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2zM4 7.5h2M4 12h2M4 16.5h2M9.5 8.5h5M9.5 12h5',
   grip: 'M9 6h0.01M15 6h0.01M9 12h0.01M15 12h0.01M9 18h0.01M15 18h0.01',
   undo: 'M8 5 4 9l4 4M4 9h10a6 6 0 0 1 0 12h-3',
   redo: 'M16 5l4 4-4 4M20 9H10a6 6 0 0 0 0 12h3',

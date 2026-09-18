@@ -1237,6 +1237,129 @@ const DIAGNOSTICS = `(async () => { try { return await (async () => {
   })();
 
   // Toolbar docking: drag the grip to the left edge → vertical rail, persisted.
+  // Created notebooks: each sheet must occupy exactly one COLUMN — so N sheets are
+  // N pages single-spread and N/2 double — the ruling must be painted, and a sheet
+  // must work as an ink anchor. (The column part is measured, not assumed: sheets
+  // inside a wrapper element lost their percentage height and six of them collapsed
+  // onto one page.)
+  out.notebook = await (async () => {
+    const WANT = 6;
+    const bookId = await store.getState().createNotebook({
+      title: '自检笔记本',
+      paper: 'lined',
+      pages: WANT,
+    });
+    if (!bookId) return { ok: false, why: 'create failed' };
+    const spread0 = store.getState().settings.spread;
+    const fs0 = store.getState().settings.fontSizePx;
+    try {
+      // Wait for the reader to actually be open. The loading skeleton has no
+      // bottom bar and no page edges, so a fixed sleep that lands early reads
+      // nothing and every assertion fails for the wrong reason.
+      // (No backticks in here: this whole block lives inside a template literal.)
+      const until = async (fn, ms = 12000) => {
+        const deadline = Date.now() + ms;
+        while (Date.now() < deadline) {
+          if (fn()) return true;
+          await wait(120);
+        }
+        return false;
+      };
+      // No regex here: this lives in a template literal, where a backslash-d is
+      // eaten and the pattern silently turns into /d+/g. Filter characters instead.
+      const nums = (t) => {
+        const out = [];
+        let cur = '';
+        for (const ch of t) {
+          if (ch >= '0' && ch <= '9') cur += ch;
+          else if (cur) { out.push(Number(cur)); cur = ''; }
+        }
+        if (cur) out.push(Number(cur));
+        return out;
+      };
+      const paged = () => nums(pagesLabel()).length >= 2;
+
+      store.getState().navigate({ name: 'reader', bookId });
+      const opened = await until(() => document.querySelectorAll('.paper-sheet').length > 0 && paged());
+      if (!opened) return { ok: false, why: 'reader never finished opening', label: pagesLabel() };
+
+      const measure = async (spread) => {
+        store.getState().patchSettings({ spread });
+        // The paginator remeasures asynchronously; wait for a page count again.
+        await wait(300);
+        await until(paged);
+        const content = document.querySelector('.viewport > div');
+        const cols = content ? Number(getComputedStyle(content).columnCount) || 1 : 1;
+        const sheets = document.querySelectorAll('.paper-sheet').length;
+        const pages = nums(pagesLabel())[1];
+        const box = document.querySelector('.paper-sheet')?.getBoundingClientRect();
+        const vp = document.querySelector('.viewport')?.getBoundingClientRect();
+        return {
+          cols, sheets, pages,
+          fills: !!(box && vp && box.height > vp.height * 0.7),
+          ok: sheets === WANT && pages === Math.ceil(WANT / cols) && !!box && !!vp && box.height > vp.height * 0.7,
+        };
+      };
+      const double = await measure('double');
+      const single = await measure('single');
+
+      const first = document.querySelector('.paper-sheet');
+      const ruled = first ? getComputedStyle(first).backgroundImage !== 'none' : false;
+
+      const pageNow = () => nums(pagesLabel())[0];
+      const before = pageNow();
+      document.querySelector('.page-edge.right')?.click();
+      await until(() => pageNow() !== before, 6000);
+      const turned = pageNow() === before + 1;
+
+      // Write on a sheet: it must anchor and survive a type-size change.
+      document.querySelector('.tool-cluster [title="手写标注"]')?.click();
+      await until(() => !!document.querySelector('.ink-capture'), 5000);
+      // Pick the pen explicitly. The tool is Reader state that outlives ink mode, and
+      // the inkPro probe leaves it on the lasso — a drag then paints a selection box
+      // that vanishes on pointerup, so the stroke count never moves and the failure
+      // looks like "drawing is broken on notebooks".
+      document.querySelector('.ink-toolbar [title="笔"]')?.click();
+      await wait(200);
+      const cap = document.querySelector('.ink-capture');
+      let inked = false;
+      let inkHeld = false;
+      if (cap) {
+        const r = cap.getBoundingClientRect();
+        const x0 = Math.round(r.left + r.width * 0.25);
+        const y0 = Math.round(r.top + r.height * 0.35);
+        const pe = (type, x, y) =>
+          cap.dispatchEvent(new PointerEvent(type, {
+            bubbles: true, cancelable: true, pointerId: 23, pointerType: 'pen',
+            pressure: type === 'pointerup' ? 0 : 0.6, clientX: x, clientY: y, button: 0, buttons: 1,
+          }));
+        pe('pointerdown', x0, y0);
+        for (let i = 1; i <= 8; i++) { pe('pointermove', x0 + i * 12, y0 + i); await wait(14); }
+        pe('pointerup', x0 + 96, y0);
+        const strokes = () => document.querySelectorAll('svg.ink-layer path').length;
+        await until(() => strokes() === 1, 5000);
+        inked = strokes() === 1;
+        store.getState().patchSettings({ fontSizePx: fs0 + 3 });
+        await wait(1500);
+        inkHeld = strokes() === 1;
+        store.getState().patchSettings({ fontSizePx: fs0 });
+        await wait(1200);
+        document.querySelector('.ink-toolbar [title="完成"]')?.click();
+        await wait(250);
+      }
+
+      return {
+        double, single, ruled, turned, inked, inkHeld,
+        ok: double.ok && single.ok && ruled && turned && inked && inkHeld,
+      };
+    } finally {
+      store.getState().patchSettings({ spread: spread0, fontSizePx: fs0 });
+      await store.getState().removeBook(bookId);
+      store.getState().navigate({ name: 'reader', bookId: book.id });
+      await wait(1800);
+    }
+  })();
+
   out.inkDock = await (async () => {
     document.querySelector('.tool-cluster [title="手写标注"]')?.click();
     await wait(400);
@@ -1764,6 +1887,78 @@ const DIAGNOSTICS = `(async () => { try { return await (async () => {
   return out;
 })(); } catch (e) { return { scriptError: String(e), stack: e && e.stack, partial: window.__aloudOut }; } })()`;
 
+/**
+ * Evaluate one probe file against a real window and quit.
+ *
+ * The full UI harness samples read-aloud in real time and takes many minutes, which is
+ * a poor loop when you are iterating on one behaviour. Same globals, same console
+ * capture, one answer.
+ */
+/** A full run is minutes long (read-aloud is sampled live); this is a hang, not slowness. */
+const SUITE_TIMEOUT_MS = 15 * 60 * 1000;
+
+/**
+ * Race a promise against a deadline.
+ *
+ * Two runs in a row produced no output at all: a probe wedged, the evaluated script
+ * never settled, and the harness waited forever. A suite that can hang silently is
+ * worse than one that fails — with this it reports which probe it stopped on.
+ */
+async function withWatchdog<T>(work: Promise<T>, ms: number): Promise<T | { timedOut: true }> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<{ timedOut: true }>((resolve) => {
+    timer = setTimeout(() => resolve({ timedOut: true }), ms);
+  });
+  try {
+    return await Promise.race([work, deadline]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+export async function runProbe(win: BrowserWindow, probeFile: string): Promise<void> {
+  const emit = emitter();
+  const consoleMessages: string[] = [];
+  const LEVELS = ['debug', 'info', 'warn', 'error'];
+  win.webContents.on('console-message', (_e, level, message, line, source) => {
+    if (message.includes('ScriptProcessorNode is deprecated')) return;
+    if (level >= 2) consoleMessages.push(`[${LEVELS[level] ?? level}] ${message} (${source}:${line})`);
+  });
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      win.webContents.once('did-finish-load', () => resolve());
+      win.webContents.once('did-fail-load', (_e, code, desc) => reject(new Error(`${code} ${desc}`)));
+      setTimeout(() => reject(new Error('load timeout')), 20_000);
+    });
+    await new Promise((r) => setTimeout(r, 1200));
+    const body = fs.readFileSync(probeFile, 'utf8');
+    const wantBook = JSON.stringify(process.env.ALOUD_SMOKE_BOOK ?? '');
+    const result = await win.webContents.executeJavaScript(
+      `(async () => {
+        window.__aloudSmokeBook = ${wantBook} || null;
+        const store = window.__aloudStore;
+        const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+        const wanted = window.__aloudSmokeBook;
+        const books = store.getState().library.books;
+        const book = (wanted && books.find((b) => b.id.includes(wanted) || b.title.includes(wanted))) || books[0];
+        try {
+          ${body}
+        } catch (err) {
+          return { probeError: String(err && err.stack || err) };
+        }
+      })()`,
+      true,
+    );
+    emit({ ok: !consoleMessages.length && !(result && result.probeError), result, consoleMessages });
+    app.exit(0);
+  } catch (err) {
+    emit({ ok: false, error: err instanceof Error ? `${err.message}
+${err.stack}` : String(err), consoleMessages });
+    app.exit(1);
+  }
+}
+
 export async function runUiSmoke(win: BrowserWindow): Promise<void> {
   const emit = emitter();
   const consoleMessages: string[] = [];
@@ -1794,11 +1989,31 @@ export async function runUiSmoke(win: BrowserWindow): Promise<void> {
     const localBase = JSON.stringify(process.env.ALOUD_SMOKE_LOCAL_TTS ?? '');
     const wantBook = JSON.stringify(process.env.ALOUD_SMOKE_BOOK ?? '');
     const wantVoice = JSON.stringify(process.env.ALOUD_SMOKE_VOICE ?? '');
-    const diagnostics = await win.webContents.executeJavaScript(
-      `window.__aloudSmokeLocalTts = ${localBase} || null; window.__aloudSmokeBook = ${wantBook} || null;` +
-        ` window.__aloudSmokeVoice = ${wantVoice} || null; window.__aloudSmokeInstall = ${JSON.stringify(process.env.ALOUD_SMOKE_TTS_FAKE === '1')}; ${DIAGNOSTICS}`,
-      true,
+    const raced = await withWatchdog(
+      win.webContents.executeJavaScript(
+        `window.__aloudSmokeLocalTts = ${localBase} || null; window.__aloudSmokeBook = ${wantBook} || null;` +
+          ` window.__aloudSmokeVoice = ${wantVoice} || null; window.__aloudSmokeInstall = ${JSON.stringify(process.env.ALOUD_SMOKE_TTS_FAKE === '1')}; ${DIAGNOSTICS}`,
+        true,
+      ) as Promise<Record<string, unknown>>,
+      SUITE_TIMEOUT_MS,
     );
+
+    if ((raced as { timedOut?: true }).timedOut) {
+      // Read back what did finish, so the report names the probe it wedged on.
+      const done = (await win.webContents
+        .executeJavaScript('Object.keys(window.__aloudOut ?? {})', true)
+        .catch(() => [])) as string[];
+      emit({
+        ok: false,
+        error: `probe suite timed out after ${Math.round(SUITE_TIMEOUT_MS / 1000)}s`,
+        lastCompletedProbe: done[done.length - 1] ?? '(none)',
+        completedProbes: done,
+        consoleMessages,
+      });
+      app.exit(1);
+      return;
+    }
+    const diagnostics = raced as Record<string, unknown>;
     // Picture paste probe with a freshly written clipboard: this machine shares its
     // clipboard over Deskflow, so anything written minutes earlier may be gone by the
     // time the renderer pastes. Write it milliseconds before the Ctrl+V.

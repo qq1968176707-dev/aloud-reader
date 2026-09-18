@@ -5,6 +5,7 @@ import type { ImportResult,
   ReadAloudSettings,
   Settings,
   StatsFile,
+  NotebookOptions,
 } from '@shared/types';
 import { debounce } from '../lib/util';
 
@@ -35,6 +36,8 @@ interface AppStore {
   importBooks: (paths?: string[]) => Promise<void>;
   /** Books dropped on the window — Files, because the browser host never sees paths. */
   importFiles: (files: File[]) => Promise<void>;
+  /** Create an empty notebook and open it. Returns the new book id. */
+  createNotebook: (opts: NotebookOptions) => Promise<string | null>;
   /** Shared tail of both importers: toasts, failures, library refresh. */
   runImport: (run: () => Promise<ImportResult[]>) => Promise<void>;
   removeBook: (bookId: string) => Promise<void>;
@@ -103,6 +106,19 @@ export const useStore = create<AppStore>((set, get) => ({
 
   importBooks: async (paths) => get().runImport(() => window.aloud.books.import(paths)),
   importFiles: async (files) => get().runImport(() => window.aloud.books.importFiles(files)),
+
+  createNotebook: async (opts) => {
+    try {
+      const made = await window.aloud.books.create(opts);
+      if (!made.ok || !made.bookId) throw new Error(made.error ?? '新建失败');
+      set({ library: await window.aloud.library.get() });
+      get().toast(`已新建「${made.title}」`);
+      return made.bookId;
+    } catch (err) {
+      get().toast(err instanceof Error ? err.message : String(err), 'error');
+      return null;
+    }
+  },
   runImport: async (run) => {
     set({ importing: true });
     try {

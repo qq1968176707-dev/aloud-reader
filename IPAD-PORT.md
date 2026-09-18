@@ -112,6 +112,28 @@ Chrome 里跑通了：
 2. 词典（web 版 `dict.lookup` 返回 null）
 3. 站点是公开的：谁拿到链接都能用（书全在本地，不上传，但应用本身能被别人打开）
 
+## 笔记本（新建功能）
+
+一本笔记本就是**一本普通的书**：一个章节，里面 N 个空的叶子块，每块一张纸。所以翻页、
+手写、录音、位置记忆、统计全都照旧工作，没有第二套文档模型。
+
+- `src/shared/notebook.ts` 生成，两个宿主共用；`books.create` / `books.addPages`
+- 格线用 CSS 画（`.paper-sheet[data-paper]`），行距 = 正文字号 × 行高，调字号时格线跟着变
+- 纸张样式另存一份在书架条目 `paper` 字段上，封面就能直接画出纸样，不用为每张卡读 manifest
+
+### 这里有三件事是量出来的，不是想出来的
+
+1. **纸张块外面不能包 div**。`height: 100%` 相对**父元素**解析，包裹层是 auto 高度时
+   百分比无从解析 → 实测 6 张纸只排成 1 页、每张 136px。去掉包裹层后 6 张 = 6 页
+   （单栏）/ 3 页（双栏对开），纸高 998px 满列。
+
+2. **章节 HTML 缓存必须带 bookId**。原来只用 chapterId 做键，而所有笔记本的章节都叫
+   `pages` —— 连开两本笔记本，第二本显示的是第一本的纸。实测：要横线纸，画出来是上一本的
+   点阵纸。已改成 `${bookId}|${chapterId}`（普通书籍同样受益，章节 id 只在书内唯一）。
+
+3. **别拿零宽空格当占位符**。U+200B **不是**空白字符，`trim()` 去不掉它，每张纸会带一个
+   看不见的"字"让朗读和搜索去处理。纸张块的高度来自 CSS，本来就不需要占位符。
+
 ## 已知坑（都是实测踩出来的）
 
 1. **`src/web/install.ts` 必须是 `main-web.tsx` 的第一条 import**。
@@ -144,8 +166,17 @@ npm run build            # 桌面版
 npm run build:web        # iPad 版 -> dist-web/
 npm run dev:web          # 浏览器调试，开 http://localhost:5200/index-web.html
 node scripts/parity.mjs  # 解析回归：本机真实书库重新导入比对章节数/字数
-npm run smoke:ui         # 53 个 UI 探针
+npm run smoke:ui         # 全套 UI 探针（十几分钟，朗读是实时采样的）
+node scripts/probe.mjs <文件.js> [--book 书名] [--live]   # 单项探针，约 20 秒
 ```
+
+⚠️ **别在 smoke 套件跑着的时候跑别的 Electron**。`probe.mjs` 原来一上来就
+`taskkill /F /IM electron.exe`，把后台的套件一起杀了——表现和"套件卡死"一模一样，我为此
+误判了两轮。现在杀进程要显式 `--kill`，并且套件加了看门狗：真卡住会报出最后跑完的探针，
+而不是什么都不写。
+
+⚠️ 探针默认跑在**空的临时 profile** 里（`ALOUD_SMOKE_USERDATA`）。探针会改设置、建书，
+中途被打断就会留在用户真实的书库里——`spread` 就这么被改过一次。需要真实书库时加 `--live`。
 
 `parity-baseline.json` 不进仓（含书名与本机绝对路径）。新机器先跑
 `node scripts/parity.mjs --record` 生成自己的基线。

@@ -94,7 +94,11 @@ export default function Reader({ bookId }: { bookId: string }): JSX.Element {
 
   const blocksRef = useRef<BlockModel[]>([]);
   const segmentsRef = useRef(new Map<string, ReadAloudSegment[]>());
+  /* Keyed by `${bookId}|${chapterId}`: chapter ids are unique only within a book,
+     and every created notebook names its single chapter 'pages'. Keying by chapter
+     alone showed one notebook's sheets inside another. */
   const htmlCache = useRef(new Map<string, string>());
+  const cacheKey = useCallback((chapter: string) => `${bookId}|${chapter}`, [bookId]);
   const stateRef = useRef<ReadingState | null>(null);
   const chapterReady = useRef<{ chapterId: string; resolve: () => void } | null>(null);
   const pendingAnchor = useRef<TextAnchor | null>(null);
@@ -105,6 +109,10 @@ export default function Reader({ bookId }: { bookId: string }): JSX.Element {
   const layerRef = useRef<HTMLDivElement>(null);
 
   const chapter = manifest?.readingOrder[chapterIndex];
+  /* A created notebook: sheets to write on rather than text to read. The reading
+     chrome that has no meaning here (minutes left, chapter ticks) gives way to the
+     page count and an "add pages" button. */
+  const isNotebook = !!manifest?.meta?.notebook;
   const chapterId = chapter?.id ?? '';
 
   /* ------------------------------------------------------------- ui */
@@ -322,7 +330,7 @@ export default function Reader({ bookId }: { bookId: string }): JSX.Element {
     let cancelled = false;
     const ref = manifest?.readingOrder[chapterIndex];
     if (!ref) return;
-    const cached = htmlCache.current.get(ref.id);
+    const cached = htmlCache.current.get(cacheKey(ref.id));
     if (cached != null) {
       setChapterHtml(cached);
       return;
@@ -331,10 +339,10 @@ export default function Reader({ bookId }: { bookId: string }): JSX.Element {
       .chapter(bookId, ref.id)
       .then((html) => {
         if (cancelled) return;
-        htmlCache.current.set(ref.id, html);
+        htmlCache.current.set(cacheKey(ref.id), html);
         if (htmlCache.current.size > 6) {
           const oldest = htmlCache.current.keys().next().value as string | undefined;
-          if (oldest && oldest !== ref.id) htmlCache.current.delete(oldest);
+          if (oldest && oldest !== cacheKey(ref.id)) htmlCache.current.delete(oldest);
         }
         setChapterHtml(html);
       })
@@ -342,7 +350,7 @@ export default function Reader({ bookId }: { bookId: string }): JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [bookId, chapterIndex, manifest, toast]);
+  }, [bookId, cacheKey, chapterIndex, manifest, toast]);
 
   const onBlocks = useCallback(
     (blocks: BlockModel[]) => {
@@ -2537,7 +2545,31 @@ export default function Reader({ bookId }: { bookId: string }): JSX.Element {
               : null}
           </div>
         </div>
-        <span>本章还剩 {formatMinutes(remaining)}</span>
+        {isNotebook ? (
+          <button
+            className="btn small"
+            title="在末尾追加 10 页"
+            onClick={() => {
+              void window.aloud.books
+                .addPages(bookId, 10)
+                .then(async (total) => {
+                  // The chapter is cached by id; drop it so the new sheets appear.
+                  htmlCache.current.delete(cacheKey(chapterId));
+                  const fresh = await window.aloud.books.chapter(bookId, chapterId);
+                  htmlCache.current.set(cacheKey(chapterId), fresh);
+                  setChapterHtml(fresh);
+                  setManifest(await window.aloud.books.manifest(bookId));
+                  toast(`已加到 ${total} 页`);
+                })
+                .catch((err) => toast(err instanceof Error ? err.message : String(err), 'error'));
+            }}
+          >
+            <Icon name="plus" size={14} />
+            加页
+          </button>
+        ) : (
+          <span>本章还剩 {formatMinutes(remaining)}</span>
+        )}
         <span>{Math.round(progress * 100)}%</span>
       </footer>
 

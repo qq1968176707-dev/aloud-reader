@@ -12,6 +12,8 @@ import {
   type ImportResult,
   type InkFile,
   type Library,
+  type NotebookOptions,
+  type PaperStyle,
   type PlainIndex,
   type ReadingState,
   type RecordingMark,
@@ -21,8 +23,14 @@ import {
 } from '@shared/types';
 import { countWords } from '@shared/text';
 import { extractBlocks } from '@shared/import/html';
-import { SUPPORTED_EXTENSIONS, parseBook, type ImportedBook } from '@shared/import/index';
+import {
+  SUPPORTED_EXTENSIONS,
+  makeBookId,
+  parseBook,
+  type ImportedBook,
+} from '@shared/import/index';
 import { setPdfjsLoader } from '@shared/import/pdf';
+import { MAX_NOTEBOOK_PAGES, appendSheets, buildNotebook } from '@shared/notebook';
 import { ASSET_BASE } from './assets';
 import { createNativeSpeech, isNativeShell } from './nativeSpeech';
 import * as fsx from './storage';
@@ -237,6 +245,60 @@ export const webApi = {
     import: async (): Promise<ImportResult[]> => importFiles(await pickFiles()),
     /** Used by the drop handler, which has real File objects already. */
     importFiles,
+
+    create: async (opts: NotebookOptions): Promise<ImportResult> => {
+      const bookId = makeBookId(opts.title || 'notebook');
+      try {
+        const book = buildNotebook(opts, bookId);
+        const entry = await materialize(book, 'notebook');
+        // A notebook is one chapter of N sheets; the shelf should count sheets.
+        const lib = await getLibrary();
+        const row = lib.books.find((b) => b.id === bookId);
+        if (row) {
+          row.chapterCount = Number(book.manifest.meta?.pages) || 1;
+          row.paper = opts.paper;
+          row.shelf = 'reading';
+          await fsx.writeJson(P.library(), lib);
+        }
+        return { ok: true, file: entry.title, bookId, title: entry.title };
+      } catch (err) {
+        await fsx.remove(P.bookDir(bookId), true);
+        return { ok: false, file: opts.title, error: err instanceof Error ? err.message : String(err) };
+      }
+    },
+
+    addPages: async (bookId: string, count: number): Promise<number> => {
+      const manifest = await fsx.readJson<BookManifest | null>(P.manifest(bookId), null);
+      if (!manifest?.meta?.notebook) throw new Error('这本不是笔记本');
+      const paper = (manifest.meta.paper as PaperStyle) ?? 'blank';
+      const existing = Number(manifest.meta.pages) || 0;
+      const add = Math.max(1, Math.min(MAX_NOTEBOOK_PAGES - existing, Math.floor(count) || 1));
+      if (add <= 0) return existing;
+
+      const file = `${P.bookDir(bookId)}/chapters/pages.html`;
+      const html = appendSheets((await fsx.readText(file)) ?? '', paper, existing, add);
+      await fsx.writeBytes(file, html);
+
+      manifest.meta.pages = existing + add;
+      await fsx.writeJson(P.manifest(bookId), manifest);
+
+      // plain.json must keep one entry per leaf block, or anchors past the old end
+      // would point at nothing.
+      const plain = await fsx.readJson<PlainIndex | null>(P.plain(bookId), null);
+      if (plain?.chapters[0]) {
+        plain.chapters[0].blocks = extractBlocks(html);
+        await fsx.writeJson(P.plain(bookId), plain);
+      }
+
+      const lib = await getLibrary();
+      const row = lib.books.find((b) => b.id === bookId);
+      if (row) {
+        row.chapterCount = existing + add;
+        await fsx.writeJson(P.library(), lib);
+      }
+      return existing + add;
+    },
+
     remove: async (bookId: string) => {
       await fsx.remove(P.bookDir(bookId), true);
       await fsx.remove(P.state(bookId));

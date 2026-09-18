@@ -16,7 +16,15 @@ an app surface).
 ## Surfaces
 
 - **Library (书架)** — cover grid with shelf heading; sidebar of shelves and
-  collections. Covers are the imagery; no other decoration is allowed.
+  collections. Covers are the imagery; no other decoration is allowed. A created
+  notebook has no artwork, so its cover IS its paper: the same ruling as the
+  page, at a smaller pitch, with a spine in the accent colour.
+- **Paper (笔记本)** — a created notebook is an ordinary book whose chapter holds
+  one empty leaf block per sheet, each exactly one column tall. The ruling is
+  drawn in CSS from `data-paper` (blank / lined / grid / dotted) and its pitch is
+  the reader's own line height, so enlarging the type widens the lines you write
+  on. Never bake a ruling into the saved page: it would not survive a type-size
+  change and would cost storage for nothing.
 - **Reader (阅读)** — content-first. Chrome dims to a whisper after 3.5 s idle
   (`.chrome-idle`). Panels dock left (contents) and right (everything else).
   Ink mode (手写) floats one material pill (`.ink-toolbar`) holding

@@ -15,7 +15,23 @@ export const INK_SCHEMA = 'aloud-ink/1';
 /* ------------------------------------------------------------------ book */
 
 export type ChapterFormat = 'html' | 'markdown';
-export type SourceType = 'zip' | 'epub' | 'pdf' | 'mobi';
+export type SourceType = 'zip' | 'epub' | 'pdf' | 'mobi' | 'notebook';
+
+/**
+ * Ruling of a created notebook's pages.
+ *
+ * A notebook is a book whose "chapters" hold blank sheets instead of text, so every
+ * reading feature (page turns, handwriting, recordings, position memory) applies to it
+ * unchanged. The ruling is drawn in CSS from this token — never baked into the page —
+ * so it stays crisp at any zoom and can be restyled later without touching saved data.
+ */
+export type PaperStyle = 'blank' | 'lined' | 'grid' | 'dotted';
+
+export interface NotebookOptions {
+  title: string;
+  paper: PaperStyle;
+  pages: number;
+}
 
 export interface ChapterRef {
   /** Stable, unique within the book. Used as the first component of every anchor. */
@@ -84,6 +100,8 @@ export interface BookIndexEntry {
   progress: number;
   shelf: BuiltinShelf;
   sourceType: SourceType;
+  /** Notebooks only: lets the shelf draw the cover in the paper's own ruling. */
+  paper?: PaperStyle;
 }
 
 export interface Collection {

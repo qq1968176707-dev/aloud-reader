@@ -2406,3 +2406,223 @@ svg.ink-layer {
 @media (prefers-reduced-motion: reduce) {
   .engine-bar.indeterminate .engine-bar-fill { animation: none; }
 }
+
+/* ==================================================== 笔记本 / 纸张 ===== */
+
+/*
+ * Created notebooks are ordinary books whose chapter holds empty leaf blocks, one per
+ * sheet. Each sheet is exactly one column tall, so the paginator lays out one sheet per
+ * page and the existing page-turn path is reused untouched.
+ *
+ * The ruling is painted here rather than baked into the page: it stays crisp at any
+ * zoom, costs nothing to store, and tracks the reader's own type size, so enlarging the
+ * text widens the lines you write on.
+ */
+.paper-sheet {
+  --paper-rule: calc(var(--reader-size, 19px) * var(--reader-leading, 1.75));
+  --paper-ink: color-mix(in srgb, var(--reader-fg) 18%, transparent);
+  /* The paginator sets an explicit height on the flow, so 100% here is exactly one
+     column — which is what makes one sheet equal one page. Measured, not assumed:
+     with a wrapper in between the percentage went indeterminate and six sheets
+     collapsed onto a single page. */
+  height: 100%;
+  margin: 0;
+  background-repeat: repeat;
+  /* Start the ruling below the first baseline so the top line is not flush with the
+     page edge, the way a real pad has a margin. */
+  background-position: 0 var(--paper-rule);
+  break-inside: avoid;
+  cursor: default;
+}
+
+.paper-sheet[data-paper='lined'] {
+  background-image: linear-gradient(to bottom, transparent calc(var(--paper-rule) - 1px), var(--paper-ink) calc(var(--paper-rule) - 1px), var(--paper-ink) var(--paper-rule));
+  background-size: 100% var(--paper-rule);
+}
+
+.paper-sheet[data-paper='grid'] {
+  background-image:
+    linear-gradient(to bottom, transparent calc(var(--paper-rule) - 1px), var(--paper-ink) calc(var(--paper-rule) - 1px), var(--paper-ink) var(--paper-rule)),
+    linear-gradient(to right, transparent calc(var(--paper-rule) - 1px), var(--paper-ink) calc(var(--paper-rule) - 1px), var(--paper-ink) var(--paper-rule));
+  background-size: var(--paper-rule) var(--paper-rule);
+}
+
+.paper-sheet[data-paper='dotted'] {
+  background-image: radial-gradient(circle at 1px 1px, var(--paper-ink) 1.4px, transparent 1.6px);
+  background-size: var(--paper-rule) var(--paper-rule);
+}
+
+/* Blank paper draws nothing at all — it is the scratch pad. */
+.paper-sheet[data-paper='blank'] {
+  background-image: none;
+}
+
+/* ---------------------------------------------- 新建笔记本 ---------- */
+
+.new-notebook {
+  width: min(460px, calc(100vw - 32px));
+  text-align: left;
+}
+.new-notebook .field {
+  display: block;
+  margin: 16px 0;
+}
+.new-notebook .field > span {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 13px;
+  color: var(--app-fg-soft, var(--app-fg));
+}
+.new-notebook input[type='text'],
+.new-notebook input:not([type]) {
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 9px;
+  border: 1px solid var(--app-line);
+  background: var(--app-bg);
+  color: var(--app-fg);
+  font: inherit;
+}
+.new-notebook input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.paper-picker {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.paper-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 9px 5px 8px;
+  border-radius: 11px;
+  border: 1.5px solid var(--app-line);
+  background: var(--app-bg);
+  transition: border-color 140ms var(--ease-out), background 140ms var(--ease-out);
+}
+.paper-option:hover {
+  background: var(--app-hover);
+}
+.paper-option.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.paper-option b {
+  font-size: 13px;
+  font-weight: 600;
+}
+.paper-option i {
+  font-size: 12px;
+  font-style: normal;
+  color: var(--app-fg-soft, var(--app-fg));
+  opacity: 0.75;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* The swatch is drawn with the same rules as a real sheet, at a smaller pitch, so the
+   choice is made by looking rather than by trusting a label. */
+.paper-swatch {
+  --paper-rule: 7px;
+  --paper-ink: color-mix(in srgb, var(--app-fg) 26%, transparent);
+  width: 100%;
+  height: 46px;
+  border-radius: 6px;
+  border: 1px solid var(--app-line);
+  background-color: #fff;
+  background-repeat: repeat;
+  background-position: 0 var(--paper-rule);
+}
+[data-app-dark] .paper-swatch {
+  background-color: color-mix(in srgb, var(--app-fg) 8%, transparent);
+}
+.paper-swatch[data-paper='lined'] {
+  background-image: linear-gradient(to bottom, transparent calc(var(--paper-rule) - 1px), var(--paper-ink) calc(var(--paper-rule) - 1px), var(--paper-ink) var(--paper-rule));
+  background-size: 100% var(--paper-rule);
+}
+.paper-swatch[data-paper='grid'] {
+  background-image:
+    linear-gradient(to bottom, transparent calc(var(--paper-rule) - 1px), var(--paper-ink) calc(var(--paper-rule) - 1px), var(--paper-ink) var(--paper-rule)),
+    linear-gradient(to right, transparent calc(var(--paper-rule) - 1px), var(--paper-ink) calc(var(--paper-rule) - 1px), var(--paper-ink) var(--paper-rule));
+  background-size: var(--paper-rule) var(--paper-rule);
+}
+.paper-swatch[data-paper='dotted'] {
+  background-image: radial-gradient(circle at 1px 1px, var(--paper-ink) 1px, transparent 1.2px);
+  background-size: var(--paper-rule) var(--paper-rule);
+}
+
+.pages-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pages-field input {
+  width: 90px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 9px;
+  border: 1px solid var(--app-line);
+  background: var(--app-bg);
+  color: var(--app-fg);
+  font: inherit;
+}
+.pages-field small {
+  font-size: 12px;
+  color: var(--app-fg-soft, var(--app-fg));
+  opacity: 0.75;
+}
+
+/* A notebook's cover is its paper: a shelf of notebooks is told apart at a glance. */
+.notebook-cover {
+  --paper-rule: 13px;
+  --paper-ink: color-mix(in srgb, #1d1d1f 16%, transparent);
+  background-color: #fbfaf7;
+  background-repeat: repeat;
+  background-position: 0 var(--paper-rule);
+  display: flex;
+  align-items: flex-end;
+  /* A ruled page with a spine: reads as a notebook, not as a blank cover. */
+  box-shadow: inset 5px 0 0 color-mix(in srgb, var(--accent) 70%, #000 10%);
+}
+.notebook-cover.mini {
+  --paper-rule: 7px;
+}
+.notebook-cover .t {
+  padding: 10px 12px 12px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #2b2b2e;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+  line-height: 1.3;
+  max-height: 3.9em;
+  overflow: hidden;
+}
+.notebook-cover[data-paper='lined'] {
+  background-image: linear-gradient(to bottom, transparent calc(var(--paper-rule) - 1px), var(--paper-ink) calc(var(--paper-rule) - 1px), var(--paper-ink) var(--paper-rule));
+  background-size: 100% var(--paper-rule);
+}
+.notebook-cover[data-paper='grid'] {
+  background-image:
+    linear-gradient(to bottom, transparent calc(var(--paper-rule) - 1px), var(--paper-ink) calc(var(--paper-rule) - 1px), var(--paper-ink) var(--paper-rule)),
+    linear-gradient(to right, transparent calc(var(--paper-rule) - 1px), var(--paper-ink) calc(var(--paper-rule) - 1px), var(--paper-ink) var(--paper-rule));
+  background-size: var(--paper-rule) var(--paper-rule);
+}
+.notebook-cover[data-paper='dotted'] {
+  background-image: radial-gradient(circle at 1.5px 1.5px, var(--paper-ink) 1.4px, transparent 1.6px);
+  background-size: var(--paper-rule) var(--paper-rule);
+}
+
+/* "Add pages", sized for the 40px bottom bar rather than the default toolbar height. */
+.bottombar .btn.small {
+  height: 24px;
+  padding: 0 9px;
+  gap: 5px;
+  font-size: 12px;
+  border-radius: 7px;
+  flex: none;
+}
