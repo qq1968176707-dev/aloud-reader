@@ -50,6 +50,20 @@ blob URL。浏览器里有 SW 时它整个不工作，零开销。
 
 这条兜底在 mac 的 Chrome 上实测过（手动停掉 SW，插图照样显示）。
 
+## 应用内更新
+
+`android/app/src/main/java/com/aloudreader/app/ApkUpdaterPlugin.java`：打开 App 6 秒后问
+GitHub 最新 Release，版本比自己新（`__APP_VERSION__`，构建时从 package.json 烘进去）就
+提示「发现新版本」。点「下载更新」才下载（手机可能在用流量）——下载在原生侧做，因为
+GitHub 附件会 302 到另一个域名，而且要落成文件交给安装器；落在 `cacheDir/updates/`，
+经模板里已有的 FileProvider（`cache-path`）授权给系统安装器。
+
+安卓不允许普通应用静默安装，最后一步永远是系统的「安装」界面。第一次还会先问「允许
+逐读安装应用吗」（`REQUEST_INSTALL_PACKAGES`），系统自己处理。签名密钥固定，所以是覆盖
+安装，书和笔记都在。
+
+⚠️ 这段 Java 只在 CI 上编译过，还没在真机上跑过。
+
 ## 签名
 
 `android/app/build.gradle` 的 release 签名从三个环境变量读：

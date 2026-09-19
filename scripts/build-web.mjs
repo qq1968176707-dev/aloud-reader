@@ -138,6 +138,13 @@ writeFileSync(
   'utf8',
 );
 
+/* ------------------------------------------------------- 3b. version.json */
+
+// What the page shows when a new service worker takes over ("已更新到 0.1.4").
+// Deliberately NOT precached: it must come from the network to mean anything.
+const { version } = JSON.parse((await import('node:fs')).readFileSync('package.json', 'utf8'));
+writeFileSync(path.join(OUT, 'version.json'), `${JSON.stringify({ version })}\n`, 'utf8');
+
 /* ------------------------------------------------------ 4. service worker */
 
 /** Every file the shell needs, as root-relative URLs. */

@@ -35,6 +35,12 @@ Windows 和 macOS 两台 runner 上各自打包再建 Release。
 iPad 版的源码在 `src/web/`，进度与坑见 `IPAD-PORT.md`；推 main 自动发布到 Pages。
 安卓版是同一份网页版套 Capacitor 壳（`android/`，朗读接安卓原生 TTS），见 `ANDROID.md`。
 
+**自动更新**（0.1.4 起，`src/main/updater.ts` + `src/web/updater.ts`，四端共用一个提示条
+`UpdateBanner`）：Windows 用 electron-updater 读 Release 里的 `latest.yml`/`lite.yml`；
+macOS 因为 Squirrel.Mac 不接受 ad-hoc 签名，自己下 zip、退出时换掉 `.app`；安卓下新 APK
+交给系统安装器（`ApkUpdaterPlugin.java`，必须用户点「安装」）；iPad 由 Service Worker
+取新版，页面提示刷新。更新源都是 GitHub 最新 Release，打 tag 发版即生效。
+
 **模型不进安装包。** 内置语音（约 1GB）和克隆引擎（约 5GB）都是在应用里点「下载」按钮之后
 才拉的：应用内进度条 + 阶段提示 + 可取消，断了重来不会重复下载已有的部分。
 

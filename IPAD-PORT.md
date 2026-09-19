@@ -120,6 +120,19 @@ Chrome 里跑通了：
   换别的站点：`ALOUD_WEB_BASE=/ npm run build:web` 再把 `dist-web/` 丢上去
   （Cloudflare Pages：`npx wrangler pages deploy dist-web`，需要你自己登录）。
 
+### 自动更新（0.1.4）
+
+`src/web/updater.ts` 的 PWA 分支：打开时、切回前台时、每 30 分钟各检查一次
+（`registration.update()`）。新 Service Worker 接管后：打开 10 秒内直接刷新进新版；
+读书读到一半则只提示「已更新到 x · 刷新」，不打断。版本号来自构建时写出的
+`version.json`（刻意不预缓存，必须走网络才有意义）。
+
+在 mac 的 Chrome 里实测：旧版页面 → 发布新版 → 切回前台 → 提示「已更新到 0.1.4」→
+点刷新换上新包。顺带修了一个坑：新版接管后再手动「检查更新」，原来会回「已经是最新
+版本（旧版本号）」，把「已更新」盖掉。
+
+⚠️ 第一次访问时 SW 首次接管也会触发 `controllerchange`，那是安装不是更新，已跳过。
+
 ### 还没做的
 
 1. **真 iPad 上过一遍**（Safari 的 SW/OPFS 配额行为、朗读解锁、Pencil 压感、

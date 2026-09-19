@@ -14,10 +14,12 @@ import type {
   PlainIndex,
   ReadingState,
   HostSpeech,
+  HostUpdater,
   Settings,
   StatsFile,
   TtsVoice,
   InkFile,
+  UpdateState,
   RecordingMark,
   RecordingMeta,
 } from '@shared/types';
@@ -123,6 +125,22 @@ const api = {
    * src/web/nativeSpeech.ts and the contract in @shared/types.
    */
   speech: undefined as HostSpeech | undefined,
+  /** Self-update. Desktop downloads by itself, so `download` has nothing to do here. */
+  update: {
+    check: (manual?: boolean) => invoke<void>('update:check', manual),
+    download: () => Promise.resolve(),
+    apply: () => invoke<void>('update:apply'),
+    onState: (cb: (state: UpdateState) => void) => {
+      const handler = (_e: unknown, state: UpdateState) => cb(state);
+      ipcRenderer.on('update:state', handler);
+      // A state that landed before the renderer subscribed (the check runs at +8s,
+      // but a slow first paint can miss it) is fetched once on subscribe.
+      void invoke<UpdateState>('update:state').then(cb);
+      return (): void => {
+        ipcRenderer.off('update:state', handler);
+      };
+    },
+  } satisfies HostUpdater,
   /** Test harness only: resize the window (0,0 restores maximized). No-op in normal runs. */
   smokeResize: (w: number, h: number) => invoke<void>('smoke:resize', w, h),
   dialog: {

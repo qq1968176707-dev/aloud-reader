@@ -6,6 +6,7 @@ import { recordingPath } from './recordings';
 import * as store from './store';
 import { registerIpc, importableFromArgv } from './ipc';
 import { EDITION, HAS_CLONE } from './edition';
+import { checkForUpdates, initUpdater } from './updater';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEV_URL = process.env.VITE_DEV_SERVER_URL;
@@ -137,6 +138,7 @@ function buildMenu(): void {
             label: app.name,
             submenu: [
               { label: `关于 ${app.name}`, click: showAbout },
+              { label: '检查更新…', click: () => void checkForUpdates(true) },
               { type: 'separator' },
               { role: 'services', label: '服务' },
               { type: 'separator' },
@@ -227,7 +229,13 @@ function buildMenu(): void {
       submenu: [
         { label: '打开数据目录', click: () => shell.openPath(P.root()) },
         { label: '图书包格式说明', click: send('menu', 'help:format') },
-        ...(IS_MAC ? [] : ([{ type: 'separator' }, { label: '关于 逐读', click: showAbout }] as Electron.MenuItemConstructorOptions[])),
+        ...(IS_MAC
+          ? []
+          : ([
+              { type: 'separator' },
+              { label: '检查更新…', click: () => void checkForUpdates(true) },
+              { label: '关于 逐读', click: showAbout },
+            ] as Electron.MenuItemConstructorOptions[])),
       ],
     },
   ];
@@ -372,6 +380,7 @@ if (!gotLock) {
     registerIpc(getWindow);
     buildMenu();
     createWindow();
+    initUpdater(getWindow);
 
     if (process.env.ALOUD_SMOKE_PROBE && win) {
       const { runProbe } = await import('./smoke');

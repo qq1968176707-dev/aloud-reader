@@ -3,6 +3,7 @@ import { useStore } from './state/store';
 import Library from './components/Library';
 import Reader from './components/Reader';
 import Stats from './components/Stats';
+import UpdateBanner from './components/UpdateBanner';
 
 const DARK_THEMES = new Set(['night', 'gray']);
 
@@ -84,6 +85,8 @@ export default function App(): JSX.Element {
       {route.name === 'stats' ? <Stats /> : null}
 
       {dragging ? <div className="dropzone">松手导入 EPUB / PDF / .zip 图书包</div> : null}
+
+      <UpdateBanner />
 
       <div className="toasts">
         {toasts.map((t) => (

@@ -41,6 +41,7 @@ import { openInstaller, type RuntimeName } from './tts/runtime';
 import { cancelInstall, installState, startInstall, type InstallName } from './tts/installer';
 import { lookup } from './dictionary';
 import { HAS_CLONE } from './edition';
+import { applyUpdate, checkForUpdates, updateState } from './updater';
 
 const readManifest = (bookId: string): BookManifest | null =>
   store.readJson<BookManifest | null>(P.manifest(bookId), null);
@@ -263,6 +264,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   /* ------------------------------------------------------------ misc */
 
   ipcMain.handle('dict:lookup', (_e, word: string) => lookup(word));
+
+  ipcMain.handle('update:check', (_e, manual?: boolean) => checkForUpdates(!!manual));
+  ipcMain.handle('update:apply', () => applyUpdate());
+  ipcMain.handle('update:state', () => updateState());
 
   // Test harness only: lets the smoke run reproduce windowed-mode layout. Inert in
   // normal sessions so a stray renderer call cannot yank the user's window around.

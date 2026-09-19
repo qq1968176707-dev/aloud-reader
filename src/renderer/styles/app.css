@@ -2631,3 +2631,65 @@ svg.ink-layer {
   border-radius: 7px;
   flex: none;
 }
+
+/* ================================================= self-update ===== */
+
+/* A small card in the corner, never over the text column's middle. Same material as
+   the other floating layers; the download shows as a hairline, not a dialog. */
+.update-banner {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  max-width: min(440px, calc(100vw - 36px));
+  padding: 10px 12px 10px 14px;
+  border-radius: var(--radius-pop, 13px);
+  font-size: 13px;
+  color: var(--app-fg);
+  background: var(--app-material);
+  backdrop-filter: var(--material-blur);
+  box-shadow: var(--shadow-panel);
+  overflow: hidden;
+  animation: update-in 280ms var(--spring-sheet, ease-out);
+}
+.update-banner .update-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.update-banner .update-actions {
+  display: flex;
+  gap: 6px;
+}
+.update-banner.update-error .update-text {
+  color: var(--danger-text, var(--app-fg));
+}
+.update-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: color-mix(in srgb, var(--app-fg) 10%, transparent);
+}
+.update-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 320ms var(--ease-out);
+}
+.update-bar.indeterminate > span {
+  width: 35% !important;
+  animation: engine-slide 1.4s var(--ease) infinite;
+}
+@keyframes update-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .update-banner { animation: none; }
+  .update-bar.indeterminate > span { animation: none; }
+}

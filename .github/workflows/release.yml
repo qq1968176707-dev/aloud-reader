@@ -50,10 +50,15 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: installers-${{ matrix.name }}
+          # 更新清单（latest*.yml / lite*.yml）和 blockmap 是给应用内自动更新用的：
+          # Windows 的 electron-updater 读 yml 找安装包、用 blockmap 做差量下载。
           path: |
             release/*.exe
             release/*.dmg
             release/*.zip
+            release/latest*.yml
+            release/lite*.yml
+            release/*.blockmap
           if-no-files-found: error
 
   android:

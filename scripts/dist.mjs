@@ -33,11 +33,13 @@ const platform = args.some((a) => a.startsWith('--mac') || a.startsWith('--win')
   ? []
   : [process.platform === 'darwin' ? '--mac' : '--win'];
 const passthrough = args.length ? args : ['--publish', 'never'];
+// Each edition updates from its own manifest: latest.yml (pro) vs lite.yml (lite).
+const channel = lite ? ['--config.publish.channel=lite'] : [];
 
 // shell: true — Node >= 20 refuses to spawn .cmd shims directly on Windows.
 const child = spawn(
   'npx',
-  ['electron-builder', ...platform, ...passthrough, ...(args.includes('--publish') ? [] : ['--publish', 'never'])],
+  ['electron-builder', ...platform, ...passthrough, ...channel, ...(args.includes('--publish') ? [] : ['--publish', 'never'])],
   { stdio: 'inherit', shell: true, env },
 );
 child.on('exit', (code) => process.exit(code ?? 0));

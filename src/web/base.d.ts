@@ -6,3 +6,6 @@
  * routes cannot disagree.
  */
 declare const __BASE__: string;
+
+/** package.json's version, injected by vite.web.config.ts — what the updater compares against. */
+declare const __APP_VERSION__: string;

@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
@@ -24,6 +25,7 @@ export default defineConfig({
   define: {
     __ALOUD_EDITION__: JSON.stringify('lite'),
     __BASE__: JSON.stringify(base),
+    __APP_VERSION__: JSON.stringify(JSON.parse(readFileSync(r('./package.json'), 'utf8')).version),
     // Some CJS dependencies test for it.
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV ?? 'production'),
     global: 'globalThis',

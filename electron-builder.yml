@@ -17,6 +17,18 @@ files:
 # Native-free project: app code is bundled, runtime deps ship inside the asar.
 asar: true
 
+# macOS 补一个完整的 ad-hoc 签名（见脚本说明）；其它平台直接返回。
+afterPack: scripts/after-pack.cjs
+
+# 自动更新的来源（src/main/updater.ts）。有了它 electron-builder 才会生成
+# latest.yml（Windows）/ latest-mac.yml；轻量版由 scripts/dist.mjs 改成 lite 频道，
+# 生成 lite.yml，两个版本在同一个 Release 里互不覆盖。真正上传由 CI 做（--publish never）。
+publish:
+  provider: github
+  owner: qq1968176707-dev
+  repo: aloud-reader
+  channel: latest
+
 # Built-in TTS server scripts (the venv + model are installed beside them at runtime).
 extraResources:
   - from: tts-server
@@ -44,7 +56,9 @@ mac:
   artifactName: AloudReader-${version}-${arch}-${env.ALOUD_EDITION}.${ext}
   category: public.app-category.books
   icon: build/icon.icns
-  # 无开发者证书：本机 ad-hoc 签名即可运行（Apple Silicon 必须至少 ad-hoc 签名）
+  # 没有开发者证书：让 electron-builder 跳过签名，再由 afterPack 钩子给整个包做完整的
+  # ad-hoc 签名（scripts/after-pack.cjs）。只写 null 不补签是不行的——封印是破的，
+  # 别人下载后 macOS 会判「已损坏」，详见钩子里的说明。
   identity: null
   hardenedRuntime: false
   extendInfo:

@@ -238,6 +238,50 @@ export interface HostSpeech {
   wordBoundary: boolean;
 }
 
+/**
+ * Self-update, the same shape on every host.
+ *
+ * Each platform gets there differently — electron-updater on Windows, a bundle swap on
+ * macOS (Squirrel.Mac refuses ad-hoc-signed apps), the system package installer on
+ * Android, the service worker on iPad — but the renderer only ever sees these states
+ * and three verbs, so one banner serves all four.
+ */
+export type UpdateState =
+  | { kind: 'idle' }
+  | { kind: 'checking' }
+  /** Newer version found; `download()` fetches it (hosts that download by themselves skip this). */
+  | { kind: 'available'; version: string }
+  | { kind: 'downloading'; version: string; percent: number | null }
+  /** Downloaded and verified; `apply()` restarts into it / opens the installer / reloads. */
+  | { kind: 'ready'; version: string }
+  /** Only reported for a check the user asked for — a silent check that finds nothing stays idle. */
+  | { kind: 'latest'; version: string }
+  | { kind: 'error'; message: string }
+  /** This build cannot update itself (portable exe, dev run); `url` is where the new one is. */
+  | { kind: 'manual'; version: string; url: string };
+
+export interface HostUpdater {
+  /** `manual` = the user asked: report "already latest" and errors instead of staying quiet. */
+  check(manual?: boolean): Promise<void>;
+  download(): Promise<void>;
+  apply(): Promise<void>;
+  onState(cb: (state: UpdateState) => void): () => void;
+}
+
+/** Release metadata the checkers share: where the newest build lives. */
+export const UPDATE_REPO = 'qq1968176707-dev/aloud-reader';
+
+/** `0.1.10` > `0.1.9`; missing parts count as 0; anything non-numeric compares as 0. */
+export function newerVersion(candidate: string, current: string): boolean {
+  const parse = (v: string) => v.replace(/^v/, '').split(/[.+-]/).slice(0, 3).map((n) => Number.parseInt(n, 10) || 0);
+  const a = parse(candidate);
+  const b = parse(current);
+  for (let i = 0; i < 3; i++) {
+    if ((a[i] ?? 0) !== (b[i] ?? 0)) return (a[i] ?? 0) > (b[i] ?? 0);
+  }
+  return false;
+}
+
 export interface EdgeSynthRequest {
   text: string;
   voice: string;

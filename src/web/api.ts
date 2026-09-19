@@ -33,6 +33,7 @@ import { setPdfjsLoader } from '@shared/import/pdf';
 import { MAX_NOTEBOOK_PAGES, appendSheets, buildNotebook } from '@shared/notebook';
 import { ASSET_BASE } from './assets';
 import { createNativeSpeech, isNativeShell } from './nativeSpeech';
+import { createUpdater } from './updater';
 import * as fsx from './storage';
 import { P } from './storage';
 import { defaultSettings, defaultStats } from './defaults';
@@ -219,6 +220,9 @@ export const webApi = {
   // Android only: a bridge to the system TTS, because the WebView's speechSynthesis is
   // an empty shell. Undefined in every browser, where the Web Speech API works.
   speech: isNativeShell() ? createNativeSpeech() : undefined,
+  // Self-update: service-worker driven in a browser, APK download + system installer
+  // inside the Android shell (src/web/updater.ts).
+  update: createUpdater(),
   /** Lets the renderer hide desktop-only affordances without sniffing the UA. */
   isWeb: true,
 
