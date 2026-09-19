@@ -1030,6 +1030,17 @@ const DIAGNOSTICS = `(async () => { try { return await (async () => {
     const baseFile = fileBefore.strokes.length;
     await draw();
     const drawn = paths() - basePaths;
+    // Counting elements is not enough: the fountain pen (the default) once drew a path
+    // whose fill a stylesheet rule overrode to none — present in the DOM, invisible on
+    // the page, and every count-based check passed. Ask what is actually painted.
+    const inkVisible = (() => {
+      const all = [...document.querySelectorAll('svg.ink-layer path.ink-pen')];
+      const el = all[all.length - 1];
+      if (!el) return false;
+      const cs = getComputedStyle(el);
+      const paint = el.classList.contains('ink-fountain') ? cs.fill : cs.stroke;
+      return paint !== 'none' && paint !== '' && cs.opacity !== '0';
+    })();
     const persisted = (await window.aloud.ink.get(book.id)).strokes.length - baseFile;
     // Reflow: the stroke must re-project onto its block, not vanish or duplicate.
     const fs0 = store.getState().settings.fontSizePx;
@@ -1063,7 +1074,8 @@ const DIAGNOSTICS = `(async () => { try { return await (async () => {
     return {
       barShown, drawn, persisted, afterReflow: afterReflow - basePaths, afterErase: afterErase - basePaths,
       beforeUndo: beforeUndo - basePaths, afterUndo: afterUndo - basePaths, capGone,
-      ok: barShown && drawn === 1 && persisted === 1 && afterReflow - basePaths === 1 &&
+      inkVisible,
+      ok: barShown && drawn === 1 && inkVisible && persisted === 1 && afterReflow - basePaths === 1 &&
         afterErase - basePaths === 0 && beforeUndo - basePaths === 1 && afterUndo - basePaths === 0 && capGone,
     };
   })();

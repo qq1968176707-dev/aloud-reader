@@ -200,16 +200,30 @@ export function ensureInkLayer(content: HTMLElement): SVGSVGElement {
 
 const NS = 'http://www.w3.org/2000/svg';
 
+/**
+ * Colour an ink element through its inline style, never a presentation attribute.
+ *
+ * Two reasons, both of which cost real strokes:
+ *   · presentation attributes lose to ANY stylesheet rule — `.ink-layer path { fill:
+ *     none }` silently erased every fountain-pen stroke (the default pen), which is
+ *     filled rather than stroked;
+ *   · `var()` inside a presentation attribute is not honoured by every engine, and the
+ *     iPad build runs on WebKit. Inline style takes `var()` everywhere.
+ */
+export function paintInk(el: SVGElement, prop: 'fill' | 'stroke', color: string): void {
+  el.style.setProperty(prop, color);
+}
+
 function renderStroke(svg: SVGSVGElement, it: InkStroke, proj: { pts: number[]; width: number }): void {
   const el = document.createElementNS(NS, 'path');
   const style = it.tool === 'marker' ? 'marker' : (it.style ?? 'ball');
   if (style === 'fountain') {
     el.setAttribute('d', fountainOutline(proj.pts, it.ws ?? [], proj.width));
-    el.setAttribute('fill', strokeColorVar(it));
+    paintInk(el, 'fill', strokeColorVar(it));
     el.setAttribute('class', 'ink-pen ink-fountain');
   } else {
     el.setAttribute('d', pathFrom(proj.pts));
-    el.setAttribute('stroke', strokeColorVar(it));
+    paintInk(el, 'stroke', strokeColorVar(it));
     el.setAttribute('fill', 'none');
     if (style === 'marker') {
       el.setAttribute('stroke-width', String(proj.width * 4.5));
@@ -261,7 +275,7 @@ export function renderInk(
       const font = Math.max(9, it.nsize * p.r.w);
       el.setAttribute('x', String(p.r.x + it.nx * p.r.w));
       el.setAttribute('y', String(p.r.y + it.ny * p.r.w + font));
-      el.setAttribute('fill', `var(--pen-${it.color})`);
+      paintInk(el, 'fill', `var(--pen-${it.color})`);
       el.setAttribute('font-size', String(font));
       el.setAttribute('data-ink-id', it.id);
       el.setAttribute('class', 'ink-text');
@@ -281,7 +295,7 @@ export function renderInk(
       if (!proj) continue;
       const el = document.createElementNS(NS, 'path');
       el.setAttribute('d', shapePath(it.shape, proj.pts, proj.width));
-      el.setAttribute('stroke', strokeColorVar(it));
+      paintInk(el, 'stroke', strokeColorVar(it));
       el.setAttribute('stroke-width', String(proj.width));
       el.setAttribute('fill', 'none');
       el.setAttribute('data-ink-id', it.id);

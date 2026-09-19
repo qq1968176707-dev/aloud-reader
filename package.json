@@ -1,7 +1,7 @@
 {
   "name": "aloud-reader",
   "productName": "Aloud Reader",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "Apple Books-style desktop e-book reader with line-by-line read-aloud (逐行导读)",
   "main": "dist-electron/main.mjs",

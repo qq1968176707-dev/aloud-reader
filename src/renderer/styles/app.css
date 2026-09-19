@@ -1576,13 +1576,18 @@ svg.ink-layer {
   user-select: none;
 }
 
-/* Full-stage capture while writing: gestures go to the pen, not to page turning. */
+/* Full-stage capture while writing: gestures go to the pen, not to page turning.
+   The user-select / touch-callout pair keeps iPadOS from treating a slow Pencil stroke
+   as a long-press (selection loupe, callout menu) — see the touch listener in Reader. */
 .ink-capture {
   position: absolute;
   inset: 0;
   z-index: 30;
   cursor: crosshair;
   touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 .ink-capture.tool-eraser {
   cursor: cell;

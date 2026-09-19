@@ -91,8 +91,23 @@ Chrome 里跑通了：
   speak 一条静音空串再 cancel。原因是引擎真正 speak 之前要 await 语音列表，await
   一结束手势就失效了，iOS 会静默不出声
 - ✅ `getVoices()` 首次为空：`systemEngine.ts` 本来就是「监听 + 轮询 + 5s 兜底」
-- ⬜ **触屏实测**（需要真 iPad）：翻页手势 vs 长按选字的冲突、工具条尺寸、Apple
-  Pencil 压感、掌压拒绝
+- ✅ **Apple Pencil / 触控笔能写了**（2026-09-19，用户反馈「笔用不了」后修的三件事）：
+  1. **钢笔写出来是透明的**——全平台的 bug，不止 iPad：钢笔（默认笔）是填充而不是描边，
+     而 `.ink-layer path { fill: none }` 这条 CSS 规则压过了 SVG 的 `fill` 表现属性。
+     颜色现在一律走内联 style（`paintInk()`，`lib/ink.ts`）；内联 style 优先级高于
+     样式表，`var()` 在 WebKit 里也可靠。自检的 ink 探针加了 `inkVisible` 断言——
+     原来只数路径元素个数，透明的笔画也算数，所以这个 bug 活了这么久
+  2. **iOS 抢手势**：`touch-action: none` 挡得住滚动，挡不住 Safari 把笔的按压当成
+     长按/选字，几个点之后就发 `pointercancel`。现在在捕获层挂原生的非被动
+     `touchstart`/`touchmove` 监听去 `preventDefault()`（React 的 onTouchStart 是被动
+     监听，调了没用），外加 `-webkit-touch-callout: none`
+  3. **一笔断了整层卡死**：掌压拒绝的「正在画就拒绝新按下」遇到结束事件被系统吞掉的
+     笔画，会把之后所有笔画都当手掌拒掉。现在：同一个指针再按下、笔又按下、或旧笔画
+     1.5 秒没动静，都视为旧笔画已死；`lostpointercapture` 也会收尾
+  - 顺带：接了 `getCoalescedEvents()`——Pencil 是 240Hz 采样，pointermove 每帧只来一次，
+    不接的话快速的一笔有四分之三的点被扔掉，弧线会变成折线
+- ⬜ **触屏实测**（需要真 iPad）：以上都在 Chrome 里用笔的指针事件复现验证过，
+  但 iOS 的手势接管只有真机能验；另外还要看翻页手势 vs 长按选字、工具条尺寸
 
 ### ~~C. PWA 外壳收尾~~ ✅
 
@@ -194,5 +209,10 @@ cd dist-web && python3 -m http.server 5300     # localhost 也是安全上下文
 
 ```js
 const buf = await (await fetch('/sample-book.zip')).arrayBuffer();
-await window.aloud.books.importFiles([new File([buf], 'sample-book.zip')]);
+await window.__aloudStore.getState().importFiles([new File([buf], 'sample-book.zip')]);
 ```
+
+⚠️ 要经过 store（`__aloudStore.getState().importFiles`），**不要直接调
+`window.aloud.books.importFiles`**：那样书会落盘，但 store 内存里的书单还是旧的，
+之后任何一次改书单的操作（打开书、换书架）都会把这份旧书单写回 `library.json`——
+书的文件还在，书架上却没了。界面上的导入按钮和拖拽都走 store，不受影响。

@@ -43,6 +43,7 @@ import { RecordingSession } from '../lib/recorder';
 import {
   MARKER_COLORS,
   PEN_COLORS,
+  paintInk,
   ensureInkLayer,
   fountainOutline,
   isImage,
@@ -180,7 +181,12 @@ export default function Reader({ bookId }: { bookId: string }): JSX.Element {
     erased: Set<string>;
     start: { x: number; y: number };
     resizeBase?: { it: InkImage; box: { x: number; y: number; w: number; h: number } };
+    /** Which kind of pointer owns this gesture, and when it last reported — see onInkDown. */
+    kind?: string;
+    seen?: number;
   } | null>(null);
+  /** The capture overlay, for the native (non-passive) touch listeners iOS needs. */
+  const inkCaptureRef = useRef<HTMLDivElement>(null);
   const wheelTurnAt = useRef(0);
   const wheelGesture = useRef({ t: 0, sum: 0, fired: false });
   /**
@@ -750,10 +756,43 @@ export default function Reader({ bookId }: { bookId: string }): JSX.Element {
     setInkDrag({ x: e.clientX, y: e.clientY });
   };
 
+  // iPad: `touch-action: none` stops scrolling but not iOS's own reading of a stylus
+  // press — Safari still treats it as the start of a long-press / text selection and
+  // sends pointercancel a few points into the stroke, so nothing gets written. Only
+  // preventing the touch default takes the gesture away from the system, and that needs
+  // a native listener: React registers touch handlers as passive, where preventDefault
+  // is silently ignored. The pointer events we draw with are unaffected.
+  useEffect(() => {
+    const el = inkCaptureRef.current;
+    if (!inkMode || !el) return;
+    const keep = (ev: TouchEvent): void => {
+      if (ev.cancelable) ev.preventDefault();
+    };
+    el.addEventListener('touchstart', keep, { passive: false });
+    el.addEventListener('touchmove', keep, { passive: false });
+    return () => {
+      el.removeEventListener('touchstart', keep);
+      el.removeEventListener('touchmove', keep);
+    };
+  }, [inkMode]);
+
   const onInkDown = (e: React.PointerEvent<HTMLDivElement>): void => {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
     // One gesture at a time: while the pen is down, a second pointer is a resting palm.
-    if (liveInkRef.current) return;
+    // But a gesture whose end never arrived (iOS can swallow pointerup/pointercancel when
+    // it takes a gesture over) must not block every stroke after it — that is exactly
+    // "the pen stopped working". A pen cannot be down twice, and a palm does not rest
+    // motionless for seconds mid-stroke, so either of those means the old one is dead.
+    const stale = liveInkRef.current;
+    if (stale) {
+      const dead =
+        stale.pointerId === e.pointerId ||
+        (e.pointerType === 'pen' && stale.kind === 'pen') ||
+        performance.now() - (stale.seen ?? 0) > 1500;
+      if (!dead) return;
+      if (stale.mode !== 'draw' || !stale.pts.length) stale.el?.remove();
+      liveInkRef.current = null;
+    }
     if (e.pointerType === 'pen') penSeenRef.current = true;
     else if (e.pointerType === 'touch' && penSeenRef.current && inkTool !== 'select') return;
     const content = contentRef.current;
@@ -765,13 +804,17 @@ export default function Reader({ bookId }: { bookId: string }): JSX.Element {
       /* synthetic pointers have no capture */
     }
     const svg = ensureInkLayer(content);
+    // Every gesture records who owns it and when it last moved (the stale check above).
+    const begin = (g: NonNullable<typeof liveInkRef.current>): void => {
+      liveInkRef.current = { ...g, kind: e.pointerType, seen: performance.now() };
+    };
     if (inkTool === 'text') {
       // Click places (or reopens) a text box — handled on pointer up via this marker.
-      liveInkRef.current = { pointerId: e.pointerId, mode: 'draw', pts: [pt.x, pt.y], ws: [], t: 0, el: null, erased: new Set(), start: pt };
+      begin({ pointerId: e.pointerId, mode: 'draw', pts: [pt.x, pt.y], ws: [], t: 0, el: null, erased: new Set(), start: pt });
       return;
     }
     if (inkTool === 'eraser') {
-      liveInkRef.current = { pointerId: e.pointerId, mode: 'erase', pts: [], ws: [], t: 0, el: null, erased: new Set(), start: pt };
+      begin({ pointerId: e.pointerId, mode: 'erase', pts: [], ws: [], t: 0, el: null, erased: new Set(), start: pt });
       eraseAt(pt.x, pt.y);
       return;
     }
@@ -782,31 +825,31 @@ export default function Reader({ bookId }: { bookId: string }): JSX.Element {
         const hx = box.x + box.w + 4;
         const hy = box.y + box.h + 4;
         if ((pt.x - hx) ** 2 + (pt.y - hy) ** 2 <= 196) {
-          liveInkRef.current = {
+          begin({
             pointerId: e.pointerId, mode: 'resize', pts: [], ws: [], t: 0, el: null, erased: new Set(), start: pt,
             resizeBase: { it: sel[0] as InkImage, box },
-          };
+          });
           return;
         }
       }
       if (box && pt.x >= box.x - 6 && pt.x <= box.x + box.w + 6 && pt.y >= box.y - 6 && pt.y <= box.y + box.h + 6) {
-        liveInkRef.current = { pointerId: e.pointerId, mode: 'move', pts: [], ws: [], t: 0, el: null, erased: new Set(), start: pt };
+        begin({ pointerId: e.pointerId, mode: 'move', pts: [], ws: [], t: 0, el: null, erased: new Set(), start: pt });
         return;
       }
       const el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       el.setAttribute('class', 'ink-lasso');
       svg.appendChild(el);
-      liveInkRef.current = { pointerId: e.pointerId, mode: 'lasso', pts: [pt.x, pt.y], ws: [], t: 0, el, erased: new Set(), start: pt };
+      begin({ pointerId: e.pointerId, mode: 'lasso', pts: [pt.x, pt.y], ws: [], t: 0, el, erased: new Set(), start: pt });
       return;
     }
     if (inkTool === 'shape') {
       const el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       el.setAttribute('class', 'ink-pen ink-shape');
-      el.setAttribute('stroke', `var(--pen-${penColor})`);
+      paintInk(el, 'stroke', `var(--pen-${penColor})`);
       el.setAttribute('stroke-width', String(inkSize));
       el.setAttribute('fill', 'none');
       svg.appendChild(el);
-      liveInkRef.current = { pointerId: e.pointerId, mode: 'shape', pts: [pt.x, pt.y, pt.x, pt.y], ws: [], t: 0, el, erased: new Set(), start: pt };
+      begin({ pointerId: e.pointerId, mode: 'shape', pts: [pt.x, pt.y, pt.x, pt.y], ws: [], t: 0, el, erased: new Set(), start: pt });
       return;
     }
     // pen / marker
@@ -817,18 +860,18 @@ export default function Reader({ bookId }: { bookId: string }): JSX.Element {
     const width = inkSize * (isMarker ? 1 : 0.6 + 0.8 * pressure);
     if (style === 'fountain') {
       el.setAttribute('class', 'ink-pen ink-fountain');
-      el.setAttribute('fill', `var(--pen-${penColor})`);
+      paintInk(el, 'fill', `var(--pen-${penColor})`);
     } else {
-      el.setAttribute('stroke', isMarker ? `var(--hl-${markerColor})` : `var(--pen-${penColor})`);
+      paintInk(el, 'stroke', isMarker ? `var(--hl-${markerColor})` : `var(--pen-${penColor})`);
       el.setAttribute('fill', 'none');
       el.setAttribute('stroke-width', String(isMarker ? width * 4.5 : width));
       el.setAttribute('class', isMarker ? 'ink-marker' : style === 'pencil' ? 'ink-pen ink-pencil' : 'ink-pen');
       if (style === 'pencil') el.setAttribute('filter', 'url(#ink-grain)');
     }
     svg.appendChild(el);
-    liveInkRef.current = {
+    begin({
       pointerId: e.pointerId, mode: 'draw', pts: [pt.x, pt.y], ws: [1], t: performance.now(), el, erased: new Set(), start: pt,
-    };
+    });
   };
 
   const eraseAt = (x: number, y: number): void => {
@@ -848,6 +891,7 @@ export default function Reader({ bookId }: { bookId: string }): JSX.Element {
   const onInkMove = (e: React.PointerEvent<HTMLDivElement>): void => {
     const live = liveInkRef.current;
     if (!live || e.pointerId !== live.pointerId) return;
+    live.seen = performance.now();
     const content = contentRef.current;
     const pt = inkPoint(e);
     if (!content || !pt) return;
@@ -890,32 +934,59 @@ export default function Reader({ bookId }: { bookId: string }): JSX.Element {
       return;
     }
     if (inkTool === 'text') return;
-    // draw
+    // draw — every sample the browser coalesced into this event, not just the last one.
+    // Apple Pencil reports at 240Hz but pointermove fires once per frame (60Hz), so
+    // without this three of every four points of a fast stroke are thrown away and
+    // curves come out as polygons.
+    const native = e.nativeEvent as PointerEvent & { getCoalescedEvents?: () => PointerEvent[] };
+    const coalesced = native.getCoalescedEvents?.();
+    let grew = false;
+    for (const sample of coalesced?.length ? coalesced : [native]) {
+      const sp = inkPoint(sample);
+      if (sp && drawSample(live, sp, sample.pointerType, sample.pressure, sample.timeStamp || performance.now())) {
+        grew = true;
+      }
+    }
+    if (!grew) return;
+    if (inkTool !== 'marker' && penStyle === 'fountain') {
+      live.el?.setAttribute('d', fountainOutline(live.pts, live.ws, inkSize));
+    } else {
+      live.el?.setAttribute('d', pathFrom(live.pts));
+    }
+  };
+
+  /**
+   * Extend the live pen/marker stroke by one input sample; false when the sample was
+   * too close to the last point to keep. `now` is the sample's own timestamp, so the
+   * speed-based nib width stays right when several samples arrive in one event.
+   */
+  const drawSample = (
+    live: NonNullable<typeof liveInkRef.current>,
+    pt: { x: number; y: number },
+    pointerType: string,
+    pressure: number,
+    now: number,
+  ): boolean => {
     const last = live.pts.length - 2;
     const dx = pt.x - live.pts[last];
     const dy = pt.y - live.pts[last + 1];
     const dist2 = dx * dx + dy * dy;
-    if (dist2 < 4) return; // 2px minimum step keeps paths light
-    const now = performance.now();
+    if (dist2 < 4) return false; // 2px minimum step keeps paths light
     const isMarker = inkTool === 'marker';
     const style = isMarker ? 'marker' : penStyle;
     if (style === 'fountain') {
       // Width follows real pressure when the stylus reports it, else stroke speed
       // (slow = wide, like a real nib laying more ink).
       const target =
-        e.pointerType === 'pen' && e.pressure > 0 && e.pressure !== 0.5
-          ? 0.5 + e.pressure
+        pointerType === 'pen' && pressure > 0 && pressure !== 0.5
+          ? 0.5 + pressure
           : Math.min(1.35, Math.max(0.55, 1.4 - Math.sqrt(dist2) / Math.max(1, now - live.t) / 0.9));
       const prev = live.ws[live.ws.length - 1] ?? 1;
       live.ws.push(prev * 0.65 + target * 0.35);
     }
     live.t = now;
     live.pts.push(pt.x, pt.y);
-    if (style === 'fountain') {
-      live.el?.setAttribute('d', fountainOutline(live.pts, live.ws, inkSize));
-    } else {
-      live.el?.setAttribute('d', pathFrom(live.pts));
-    }
+    return true;
   };
 
   const onInkUp = (e: React.PointerEvent<HTMLDivElement>): void => {
@@ -1914,6 +1985,9 @@ export default function Reader({ bookId }: { bookId: string }): JSX.Element {
       // click still follows the link; only a real drag turns the page.
       const target = event.target as HTMLElement;
       if (target.closest('button, input, select, textarea, .ra-bar, .panel, .selection-menu')) return;
+      // Writing, not turning: on a tablet the browser follows every pen/finger touch with
+      // a compatibility mousedown, which would otherwise start a page-curl mid-stroke.
+      if (target.closest('.ink-capture, .ink-toolbar, .ink-text-editor')) return;
       pendingAnchor.current = null;
       dragRef.current = {
         startX: event.clientX,
@@ -2451,11 +2525,15 @@ export default function Reader({ bookId }: { bookId: string }): JSX.Element {
 
         {inkMode ? (
           <div
+            ref={inkCaptureRef}
             className={cx('ink-capture', `tool-${inkTool}`)}
             onPointerDown={onInkDown}
             onPointerMove={onInkMove}
             onPointerUp={onInkUp}
             onPointerCancel={onInkUp}
+            // The capture can end without a pointerup (the OS took the gesture over);
+            // closing the stroke here is what keeps the next one from being refused.
+            onLostPointerCapture={onInkUp}
           />
         ) : null}
         {inkMode && inkTextEdit ? (
